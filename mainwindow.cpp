@@ -22,7 +22,15 @@ MainWindow::~MainWindow()
 
 void MainWindow::GetRequest(QNetworkReply *reply)
 {
-    QListWidgetItem *item = new QListWidgetItem(ui_list);
-    item->setText("Bruh");
-    item->setCheckState(Qt::Unchecked);
+    QString replyText = reply->readAll();
+    reply->deleteLater();
+    QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
+    QJsonArray arr = doc.array();
+    for (auto val : arr) {
+        QJsonObject obj = val.toObject();
+        QListWidgetItem *item = new QListWidgetItem(ui_list);
+        item->setText(obj["name"].toString());
+        item->setToolTip(obj["description"].toString());
+        item->setCheckState(Qt::Unchecked);
+    }
 }
