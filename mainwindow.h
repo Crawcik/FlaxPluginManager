@@ -5,8 +5,11 @@
 #include <QListWidget>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 
-#define JSON_URL "https://gist.githubusercontent.com/Crawcik/5178b70e52ea577cb1100dd6a4884749/raw/flax_plugins_list.json"
+#define JSON_URL "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

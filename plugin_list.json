@@ -1,0 +1,17 @@
+[
+	{
+		"name": "Journal",
+		"url": "https://github.com/Crawcik/Journal/",
+		"projectFile": "Journal.flaxproj"
+	},
+	{
+		"name": "Flax Collaborate",
+		"url": "https://github.com/FlaxCommunityProjects/FlaxCollaborate",
+		"projectFile": "FlaxCollaborate.flaxproj"
+	},
+	{
+		"name": "HeroCrab Plugin",
+		"url": "https://github.com/herocrab/HeroCrabPlugin",
+		"projectFile": "HeroCrabPlugin/HeroCrabPlugin.flaxproj"
+	}
+]
