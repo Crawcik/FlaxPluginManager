@@ -7,10 +7,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui_list = findChild<QListWidget*>("list", Qt::FindChildrenRecursively);
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    connect(manager, &QNetworkAccessManager::finished,
-            this, &MainWindow::GetRequest);
+    ui_list->setEnabled(false);
 
+    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+    connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::GetRequest);
     manager->get(QNetworkRequest(QUrl(JSON_URL)));
 }
 
@@ -26,11 +26,49 @@ void MainWindow::GetRequest(QNetworkReply *reply)
     reply->deleteLater();
     QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
     QJsonArray arr = doc.array();
-    for (auto val : arr) {
+    items = new QList<Item>();
+    for (auto val : arr)
+    {
         QJsonObject obj = val.toObject();
-        QListWidgetItem *item = new QListWidgetItem(ui_list);
-        item->setText(obj["name"].toString());
-        item->setToolTip(obj["description"].toString());
-        item->setCheckState(Qt::Unchecked);
+        Item item = {
+            .name = obj["name"].toString(),
+            .path = obj["projectFile"].toString(),
+            .ui = new QListWidgetItem(ui_list)
+        };
+        item.ui->setText(item.name);
+        item.ui->setToolTip(obj["description"].toString());
+        item.ui->setCheckState(Qt::Unchecked);
+        items->append(item);
+    }
+}
+
+void MainWindow::on_select_clicked()
+{
+    filename = QFileDialog::getOpenFileName(this,
+        tr("Open Flax project"), nullptr, tr("Flaxproj (*.flaxproj)"));
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return;
+    setWindowTitle(file.fileName());
+    ui_list->setEnabled(true);
+    QString content = file.readAll();
+    QJsonDocument doc = QJsonDocument::fromJson(content.toUtf8());
+    QJsonArray arr = doc["References"].toArray();
+    for (auto val : arr)
+    {
+        QString path = val.toObject()["Name"].toString();
+        if(path.contains("$(ProjectPath)/Plugins/"))
+        {
+            path = path.remove(0, sizeof("$(ProjectPath)/Plugins/"));
+        }
+        for (int i = 0; i < items->count(); i++)
+        {
+            Item item = items->at(i);
+            if(path.contains(item.path))
+            {
+                item.ui->setCheckState(Qt::Checked);
+            }
+
+        }
     }
 }
