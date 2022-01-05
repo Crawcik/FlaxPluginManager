@@ -1,0 +1,25 @@
+name: Build
+
+on: push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019]
+    steps:
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v2
+
+      - name: Build on Windows
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          dir
+        shell: cmd
+          
+      - name: Build on Linux
+        if: (!startsWith(matrix.os, 'windows'))
+        run: |
+          ls -la
+        shell: bash
