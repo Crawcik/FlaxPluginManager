@@ -26,7 +26,6 @@ class MainWindow : public QMainWindow
         QString name;
         QString path;
         QString moduleName;
-        QString moduleEditorName;
         QListWidgetItem *ui;
     } Item;
 
@@ -36,6 +35,8 @@ public:
 
 private slots:
     void GetRequest(QNetworkReply *reply);
+    QByteArray UpdateFlaxproj(const QString &content);
+    bool UpdateDependencies(const QDir &dir);
     void on_select_clicked();
     void on_apply_clicked();
 
@@ -44,6 +45,7 @@ private:
     QListWidget *ui_list;
     QPushButton *apply_button;
     QString filename;
+    QString gameTarget;
     QList<Item*> *items;
     QList<Item*> *cachedItems;
 };

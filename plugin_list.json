@@ -3,18 +3,21 @@
 		"name": "Journal",
 		"description": " Console for Flax Engine with command handling",
 		"url": "https://github.com/Crawcik/Journal/",
+		"moduleName": "Journal",
 		"projectFile": "Journal.flaxproj"
 	},
 	{
 		"name": "Flax Collaborate",
 		"description": "A little plugin that let multiple peoples edit the same scene simultaneously",
 		"url": "https://github.com/FlaxCommunityProjects/FlaxCollaborate",
+		"moduleName": "",
 		"projectFile": "FlaxCollaborate.flaxproj"
 	},
 	{
 		"name": "HeroCrab Plugin",
 		"description": "An authoritative network messaging framework for use in multi-player",
 		"url": "https://github.com/herocrab/HeroCrabPlugin",
+		"moduleName": "HeroCrabPlugin",
 		"projectFile": "HeroCrabPlugin/HeroCrabPlugin.flaxproj"
 	}
 ]
