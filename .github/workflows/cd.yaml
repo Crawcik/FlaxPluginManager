@@ -38,11 +38,10 @@ jobs:
           call "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           qmake
           make
-          dir
         shell: cmd
         
       - name: Archive
         uses: actions/upload-artifact@v2
         with:
           name: Build-Win
-          path: FlaxPlugMan.exe
+          path: release/FlaxPlugMan.exe
