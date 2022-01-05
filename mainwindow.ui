@@ -16,6 +16,13 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <widget class="QLabel" name="info">
+      <property name="text">
+       <string>Flax Package Manager 1.0</string>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QListWidget" name="list">
       <property name="sortingEnabled">
        <bool>false</bool>
