@@ -9,17 +9,23 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-2019]
     steps:
+      - uses: actions/checkout@v2
+    
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
 
       - name: Build on Windows
         if: startsWith(matrix.os, 'windows')
         run: |
-          dir
+          qmake
+          make
+          ls -l
         shell: cmd
           
       - name: Build on Linux
         if: (!startsWith(matrix.os, 'windows'))
         run: |
-          ls -la
+          qmake
+          make
+          dir
         shell: bash
