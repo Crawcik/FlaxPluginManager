@@ -1,0 +1,44 @@
+name: Build
+
+on: push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2019]
+    steps:
+      - uses: actions/checkout@v2
+    
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v2
+
+      - name: Build on Linux
+        if: (startsWith(matrix.os, 'ubuntu'))
+        run: |
+          qmake
+          make
+        shell: bash
+
+      - name: Build on Windows
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          call "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          qmake
+          nmake
+        shell: cmd
+        
+      - name: Archive Linux Build
+        if: (startsWith(matrix.os, 'ubuntu'))
+        uses: actions/upload-artifact@v2
+        with:
+          name: Build-Lin
+          path: ./FlaxPlugMan
+          
+      - name: Archive Windows Build
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v2
+        with:
+          name: Build-Win
+          path: release/FlaxPlugMan.exe
