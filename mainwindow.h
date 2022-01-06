@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QProgressBar>
 #include <QListWidget>
 #include <QPushButton>
 #include <QNetworkAccessManager>
@@ -11,6 +12,7 @@
 #include <QJsonArray>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QProcess>
 
 #define JSON_URL "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json"
 
@@ -25,6 +27,7 @@ class MainWindow : public QMainWindow
     typedef struct _Item {
         QString name;
         QString path;
+        QString url;
         QString moduleName;
         QListWidgetItem *ui;
     } Item;
@@ -37,11 +40,14 @@ private slots:
     void GetRequest(QNetworkReply *reply);
     QByteArray UpdateFlaxproj(const QString &content);
     bool UpdateDependencies(const QDir &dir);
+    bool TryGitDownload(const QDir &dir);
+    bool TryZipDownload(const QDir &dir);
     void on_select_clicked();
     void on_apply_clicked();
 
 private:
     Ui::MainWindow *ui;
+    QProgressBar *progressBar;
     QListWidget *ui_list;
     QPushButton *apply_button;
     QString filename;

@@ -7,8 +7,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     ui_list = findChild<QListWidget*>("list", Qt::FindChildrenRecursively);
+    progressBar = findChild<QProgressBar*>("progressBar", Qt::FindChildrenRecursively);
     apply_button = findChild<QPushButton*>("apply", Qt::FindChildrenRecursively);
     ui_list->setEnabled(false);
+    progressBar->hide();
     apply_button->setEnabled(false);
 
     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
@@ -35,6 +37,7 @@ void MainWindow::GetRequest(QNetworkReply *reply)
         QJsonObject obj = val.toObject();
         Item *item = new Item();
         item->name = obj["name"].toString(),
+        item->url = obj["url"].toString(),
         item->path = obj["projectFile"].toString(),
         item->moduleName = obj["moduleName"].toString(),
         item->ui = new QListWidgetItem(ui_list);
@@ -74,7 +77,6 @@ void MainWindow::on_select_clicked()
                 item->ui->setCheckState(Qt::Checked);
                 cachedItems->append(item);
             }
-
         }
     }
     apply_button->setEnabled(true);
@@ -90,6 +92,21 @@ void MainWindow::on_apply_clicked()
         directory.mkdir("Plugins");
     }
 
+    // Download plugins
+    QDir pluginDir = directory;
+    pluginDir.cd("Plugins");
+    progressBar->setValue(0);
+    progressBar->show();
+    if(!TryGitDownload(pluginDir))
+    {
+        if(!TryZipDownload(pluginDir))
+        {
+            QMessageBox::warning(this, "Error", "Downloading plugins failed!");
+            return;
+        }
+    }
+    progressBar->hide();
+    // -----------
     // Update flaxproj
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
     {
@@ -107,6 +124,7 @@ void MainWindow::on_apply_clicked()
     {
         QMessageBox::warning(this, "Warning", "Adding code dependencies failed. But plugins were installed. Try add manually");
     }
+    // -----------
     apply_button->setEnabled(true);
 }
 
@@ -125,7 +143,7 @@ QByteArray MainWindow::UpdateFlaxproj(const QString &content)
         if(checked)
         {
             QJsonObject obj;
-            obj.insert("Name", QJsonValue("$(ProjectPath)/Plugins/" + item->path));
+            obj.insert("Name", QJsonValue("$(ProjectPath)/Plugins/" + item->name  + '/' + item->path));
             cachedItems->append(item);
             arr.append(obj);
         }
@@ -243,3 +261,58 @@ bool MainWindow::UpdateDependencies(const QDir &dir)
     return true;
 }
 
+bool MainWindow::TryGitDownload(const QDir &dir)
+{
+    // Detect git
+    bool moduleCrached = false, submodule = false;
+    QProcess process;
+    process.setWorkingDirectory(dir.absolutePath());
+    process.start("git", QStringList() << "--version");
+    if(!process.waitForFinished(1000))
+        return false;
+    if(process.exitCode() != 0)
+        return false;
+
+    // Checking on submodules
+    process.start("git", QStringList() << "status");
+    if(!process.waitForFinished(1000))
+        return false;
+    submodule = process.exitCode() == 0;
+    // Counting checked!
+    int count = 0;
+    for(int i = 0; i < items->count(); i++)
+    {
+        if(items->at(i)->ui->checkState() != Qt::Checked)
+            count++;
+    }
+    if(count == 0)
+        return true;
+
+    for(int i = 0; i < items->count(); i++)
+    {
+        Item* item = items->at(i);
+        if(item->ui->checkState() != Qt::Checked || dir.exists(item->name))
+            continue;
+        progressBar->setValue((i * 100) / count);
+        process.start("git", QStringList() << (submodule ? "submodule add" : "clone") << item->url << item->name);
+        if(process.waitForFinished() && process.exitCode() == 0)
+            continue;
+        moduleCrached = true;
+        item->ui->setCheckState(Qt::Unchecked);
+    }
+    if(submodule)
+    {
+        process.start("git", QStringList() << "submodule" << "update" << "--recursice");
+        process.waitForFinished();
+    }
+    if(moduleCrached)
+    {
+        QMessageBox::warning(this, "Warning", "Some plugins couldn't be downloaded!");
+    }
+    return true;
+}
+
+bool MainWindow::TryZipDownload(const QDir &dir)
+{
+return false;
+}
