@@ -172,8 +172,9 @@ bool MainWindow::UpdateDependencies(const QDir &dir)
         return false;
     QTextStream stream(&file);
     QList<Item*> itemsToImp = *cachedItems;
-    int lineNum = 0, startNum = 0, insertion = 0;
+
     // Here its going to be more busted but im tired
+    int lineNum = 0, startNum = 0, insertion = 0;
     bool searchingSeek = true;
     while (stream.readLineInto(&line)) {
         if(startNum != 0)
@@ -181,20 +182,6 @@ bool MainWindow::UpdateDependencies(const QDir &dir)
             // Finding end to speed up process (or slow it XD)
             if(line.contains('{'))
                 insertion++;
-
-            // Finding functions
-            int i = 0;
-            while(i < itemsToImp.count())
-            {
-                Item* item = itemsToImp.at(i);
-                if(line.contains('"' + item->moduleName + '"'))
-                {
-                   itemsToImp.removeAt(i);
-                   continue;
-                }
-                i++;
-            }
-
             if(line.contains('}'))
             {
                 insertion--;
@@ -226,17 +213,33 @@ bool MainWindow::UpdateDependencies(const QDir &dir)
     stream.seek(startNum);
     while(!stream.atEnd())
     {
-         line.append(stream.readLine());
-         line.append('\n');
+        QString tmpLine = stream.readLine();
+        bool skip = false;
+        for(int i = 0; i < items->count(); i++)
+        {
+            Item* item = items->at(i);
+            if(item->moduleName.isEmpty())
+                continue;
+            if(!tmpLine.contains('"' + item->moduleName + '"'))
+                continue;
+            skip = true;
+            break;
+        }
+        if(skip)
+            continue;
+        line.append(tmpLine);
+        line.append('\n');
     }
     stream.seek(startNum);
-    for(int j = 0; j < itemsToImp.count(); j++)
+    for(int i = 0; i < itemsToImp.count(); i++)
     {
-        Item* item = itemsToImp.at(j);
-
-        stream << pattern.arg(item->moduleName) << Qt::endl;
+        Item* item = itemsToImp.at(i);
+        if(!item->moduleName.isEmpty())
+            stream << pattern.arg(item->moduleName) << Qt::endl;
     }
     stream << line;
+    file.resize(stream.pos());
+    file.close();
     return true;
 }
 
