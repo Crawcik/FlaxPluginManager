@@ -279,10 +279,11 @@ bool MainWindow::TryGitDownload(const QDir &dir)
         return false;
     submodule = process.exitCode() == 0;
     // Counting checked!
-    int count = 0;
+    int count = 0, done = 0;
     for(int i = 0; i < items->count(); i++)
     {
-        if(items->at(i)->ui->checkState() != Qt::Checked)
+        Item* item = items->at(i);
+        if((item->ui->checkState() != Qt::Checked) == dir.exists(item->name))
             count++;
     }
     if(count == 0)
@@ -290,11 +291,50 @@ bool MainWindow::TryGitDownload(const QDir &dir)
 
     for(int i = 0; i < items->count(); i++)
     {
+        progressBar->setValue((done * 100) / count);
         Item* item = items->at(i);
-        if(item->ui->checkState() != Qt::Checked || dir.exists(item->name))
+        if(item->ui->checkState() != Qt::Checked && dir.exists(item->name))
+        {
+            // Deleting plugin
+            done++;
+            if(submodule)
+            {
+                QFile gitFile(dir.filePath("../.gitmodules"));
+                if(!gitFile.exists() || !gitFile.open(QIODevice::ReadWrite  | QIODevice::Text))
+                    continue;
+                QTextStream stream(&gitFile);
+                QString newFileContent;
+                process.start("git", QStringList() << "submodule" << "deinit" << "-f" << item->name);
+                process.waitForFinished();
+                while(!stream.atEnd())
+                {
+                    QString tmpLine = stream.readLine();
+                    if(tmpLine.startsWith('[') && tmpLine.contains(item->name))
+                    {
+                        stream.readLine();
+                        stream.readLine();
+                        continue;
+                    }
+                    newFileContent.append(tmpLine);
+                    newFileContent.append('\n');
+                }
+                stream.seek(0);
+                stream << newFileContent;
+                gitFile.resize(stream.pos());
+            }
+            dir.rmdir(item->name);
             continue;
-        progressBar->setValue((i * 100) / count);
-        process.start("git", QStringList() << (submodule ? "submodule add" : "clone") << item->url << item->name);
+        }
+        // Adding plugin
+        if(item->ui->checkState() != Qt::Checked)
+            continue;
+        done++;
+        QStringList args;
+        args << (submodule ? "submodule" : "clone");
+        if(submodule)
+            args << "add" << "--force";
+        args << item->url << item->name;
+        process.start("git", args);
         if(process.waitForFinished() && process.exitCode() == 0)
             continue;
         moduleCrached = true;
