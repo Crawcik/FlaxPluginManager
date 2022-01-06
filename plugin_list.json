@@ -2,7 +2,7 @@
 	{
 		"name": "Journal",
 		"description": " Console for Flax Engine with command handling",
-		"url": "https://github.com/Crawcik/Journal/",
+		"url": "https://github.com/Crawcik/Journal",
 		"moduleName": "Journal",
 		"projectFile": "Journal.flaxproj"
 	},
