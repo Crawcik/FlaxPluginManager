@@ -1,10 +1,10 @@
 [
 	{
-		"name": "Journal",
-		"description": " Console for Flax Engine with command handling",
-		"url": "https://github.com/Crawcik/Journal",
-		"moduleName": "Journal",
-		"projectFile": "Journal.flaxproj"
+		"name": "AMD FidelityFX",
+		"description": "A cutting edge super-optimize spatial upsampling technology that produces impressive image quality at fast framerates",
+		"url": "https://github.com/FlaxEngine/FidelityFX-FSR",
+		"moduleName": "FidelityFXFSR",
+		"projectFile": "FidelityFX-FSR.flaxproj"
 	},
 	{
 		"name": "Flax Collaborate",
@@ -19,5 +19,12 @@
 		"url": "https://github.com/herocrab/HeroCrabPlugin",
 		"moduleName": "HeroCrabPlugin",
 		"projectFile": "HeroCrabPlugin/HeroCrabPlugin.flaxproj"
+	},
+	{
+		"name": "Journal",
+		"description": "Console for Flax Engine with command handling",
+		"url": "https://github.com/Crawcik/Journal",
+		"moduleName": "Journal",
+		"projectFile": "Journal.flaxproj"
 	}
 ]
