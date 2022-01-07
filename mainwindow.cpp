@@ -4,6 +4,7 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , manager(new QNetworkAccessManager(this))
 {
     ui->setupUi(this);
     ui_list = findChild<QListWidget*>("list", Qt::FindChildrenRecursively);
@@ -13,9 +14,8 @@ MainWindow::MainWindow(QWidget *parent)
     progressBar->hide();
     apply_button->setEnabled(false);
 
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::GetRequest);
-    manager->get(QNetworkRequest(QUrl(JSON_URL)));
+    connection = connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::GetRequest);
+    manager->get(QNetworkRequest(QUrl(LIST_URL)));
 }
 
 MainWindow::~MainWindow()
@@ -26,6 +26,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::GetRequest(QNetworkReply *reply)
 {
+    disconnect(connection);
+
     QString replyText = reply->readAll();
     reply->deleteLater();
     QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
@@ -85,7 +87,6 @@ void MainWindow::on_select_clicked()
 void MainWindow::on_apply_clicked()
 {
     apply_button->setEnabled(false);
-    QFile file(filename);
     QDir directory = QFileInfo(filename).absoluteDir();
     if(!directory.exists("Plugins"))
     {
@@ -99,14 +100,28 @@ void MainWindow::on_apply_clicked()
     progressBar->show();
     if(!TryGitDownload(pluginDir))
     {
-        if(!TryZipDownload(pluginDir))
+        for(int i = 0; i < items->count(); i++)
         {
-            QMessageBox::warning(this, "Error", "Downloading plugins failed!");
-            return;
+            Item* item = items->at(i);
+            if(item->ui->checkState() != Qt::Checked && pluginDir.exists(item->name))
+            {
+                pluginDir.rmdir(item->name);
+                continue;
+            }
+            if(item->ui->checkState() != Qt::Checked)
+                continue;
+            connection = connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::TryZipDownload);
+            QString par = TREE_URL;
+            manager->get(QNetworkRequest(QUrl(par.arg("Crawcik/Journal"))));
         }
     }
+
+}
+
+void MainWindow::UpdateFiles()
+{
     progressBar->hide();
-    // -----------
+    QFile file(filename);
     // Update flaxproj
     if (!file.open(QIODevice::ReadWrite | QIODevice::Text))
     {
@@ -120,7 +135,7 @@ void MainWindow::on_apply_clicked()
     file.close();
     // -----------
     // Update modules
-    if(!UpdateDependencies(directory))
+    if(!UpdateDependencies(QFileInfo(filename).absoluteDir()))
     {
         QMessageBox::warning(this, "Warning", "Adding code dependencies failed. But plugins were installed. Try add manually");
     }
@@ -352,7 +367,42 @@ bool MainWindow::TryGitDownload(const QDir &dir)
     return true;
 }
 
-bool MainWindow::TryZipDownload(const QDir &dir)
+void MainWindow::TryZipDownload(QNetworkReply *reply)
 {
-return false;
+    QString replyText = reply->readAll();
+    reply->deleteLater();
+    QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
+    if(doc.object().contains("tree"))
+    {
+        QString pattern = RAW_URL;
+        QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
+        QJsonArray arr = doc["tree"].toArray();
+        toDownload = new QList<QString>();
+        for (auto val : arr)
+        {
+            QJsonObject obj = val.toObject();
+            if(obj["type"].toString() != "blob")
+                continue;
+            replyText = obj["url"].toString();
+            replyText.remove("https://api.github.com/repos/");
+            replyText = replyText.split("/git/blobs/")[0];
+            replyText = pattern.arg(replyText) + obj["path"].toString();
+            toDownload->append(replyText);
+        }
+    }
+    else
+    {
+        replyText = doc["tree"].toString();
+        if(doc["encoding"].toString() == "base64")
+            replyText = QByteArray::fromBase64(replyText.toUtf8());
+    }
+
+    //Download next
+    if(toDownload->isEmpty())
+    {
+        disconnect(connection);
+        delete toDownload;
+        return;
+    }
+    manager->get(QNetworkRequest(QUrl(toDownload->takeFirst())));
 }

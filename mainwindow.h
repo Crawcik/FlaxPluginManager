@@ -14,7 +14,9 @@
 #include <QMessageBox>
 #include <QProcess>
 
-#define JSON_URL "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json"
+#define LIST_URL "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json"
+#define TREE_URL "https://api.github.com/repos/%1/git/trees/master?recursive=true"
+#define RAW_URL  "https://raw.githubusercontent.com/%1/master/"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -38,21 +40,25 @@ public:
 
 private slots:
     void GetRequest(QNetworkReply *reply);
+    void UpdateFiles();
     QByteArray UpdateFlaxproj(const QString &content);
     bool UpdateDependencies(const QDir &dir);
     bool TryGitDownload(const QDir &dir);
-    bool TryZipDownload(const QDir &dir);
+    void TryZipDownload(QNetworkReply *reply);
     void on_select_clicked();
     void on_apply_clicked();
 
 private:
     Ui::MainWindow *ui;
+    QNetworkAccessManager *manager;
     QProgressBar *progressBar;
     QListWidget *ui_list;
     QPushButton *apply_button;
     QString filename;
     QString gameTarget;
+    QMetaObject::Connection connection;
     QList<Item*> *items;
     QList<Item*> *cachedItems;
+    QList<QString> *toDownload;
 };
 #endif // MAINWINDOW_H
