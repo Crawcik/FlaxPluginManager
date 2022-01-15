@@ -40,7 +40,7 @@ class MainWindow : public QMainWindow
     typedef struct _Repo {
         Item* item;
         QDir path;
-        QList<QString>* files;
+        QList<QString> files;
         int initLenght;
     } Repo;
 
@@ -69,7 +69,7 @@ private:
     QMetaObject::Connection connection;
     QList<Item*> *items;
     QList<Item*> *cachedItems;
-    QList<Repo> *toDownload;
+    QList<Repo*> *toDownload;
     int downloadIndex = 0;
 };
 #endif // MAINWINDOW_H

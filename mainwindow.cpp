@@ -100,7 +100,7 @@ void MainWindow::on_apply_clicked()
     progressBar->show();
     if(!TryGitDownload(pluginDir))
     {
-       toDownload = new QList<Repo>;
+       toDownload = new QList<Repo*>;
         for(int i = 0; i < items->count(); i++)
         {
             Item* item = items->at(i);
@@ -113,10 +113,13 @@ void MainWindow::on_apply_clicked()
                 continue;
 
             //Setting toDownload
-            Repo repo {.item = item, .path = pluginDir, .files = new QStringList()};
-            if(pluginDir.exists(item->name))
-                pluginDir.mkdir(item->path);
-            repo.path.cd(item->name);
+            Repo* repo = new Repo();
+            repo->item = item;
+            repo->path = pluginDir;
+            repo->files = QStringList();
+            if(!pluginDir.exists(item->name))
+                pluginDir.mkdir(item->name);
+            repo->path.cd(item->name);
             toDownload->append(repo);
         }
         downloadIndex = 0;
@@ -378,11 +381,11 @@ bool MainWindow::TryGitDownload(const QDir &dir)
 
 void MainWindow::TryDirectDownload(QNetworkReply *reply)
 {
-    Repo repo = toDownload->takeAt(downloadIndex);
+    Repo* repo = toDownload->at(downloadIndex);
     if(reply == nullptr)
     {
         QString par = TREE_URL;
-        manager->get(QNetworkRequest(QUrl(par.arg(repo.item->url.remove(GITHUB_URL)))));
+        manager->get(QNetworkRequest(QUrl(par.arg(repo->item->url.remove(GITHUB_URL)))));
         return;
     }
     QString url = reply->url().toString();
@@ -406,17 +409,17 @@ void MainWindow::TryDirectDownload(QNetworkReply *reply)
                 replyText.remove("https://api.github.com/repos/");
                 replyText = replyText.split("/git/blobs/")[0];
                 replyText = pattern.arg(replyText) + obj["path"].toString();
-                repo.files->append(replyText);
+                repo->files.append(replyText);
             }
-            repo.initLenght = repo.files->length();
+            repo->initLenght = repo->files.length();
         }
         else
         {
             // Download file
-            QStringList pathSegments = reply->url().fileName().split('/');
+            QStringList pathSegments = reply->url().toString().split('/');
             int lenght = pathSegments.length();
-            QDir dir = repo.path;
-            for (int i = 4; i <= lenght; i++) {
+            QDir dir = repo->path;
+            for (int i = 6; i < lenght; i++) {
                 QString seg = pathSegments[i];
                 if(i == lenght - 1)
                 {
@@ -432,27 +435,31 @@ void MainWindow::TryDirectDownload(QNetworkReply *reply)
                     dir.mkpath(seg);
                 dir.cd(seg);
             }
+            int initLenght = repo->initLenght;
             float toDowLen = toDownload->length();
             float percentage = downloadIndex / toDowLen;
-            percentage += (repo.initLenght - repo.files->length()) / (repo.initLenght * toDowLen);
+            percentage += (initLenght - repo->files.length()) / (initLenght * toDowLen);
             progressBar->setValue(percentage * 100);
         }
     }
+    else
+        repo->item->ui->setCheckState(Qt::Unchecked);
     reply->deleteLater();
 
     //Download next
-    if(repo.files->isEmpty())
+    if(repo->files.isEmpty())
     {
-        delete repo.files;
+        delete repo;
         downloadIndex++;
         if(downloadIndex == toDownload->length())
         {
-            disconnect(connection);
             delete toDownload;
+            disconnect(connection);
+            UpdateFiles();
             return;
         }
         TryDirectDownload(nullptr);
         return;
     }
-    manager->get(QNetworkRequest(QUrl(repo.files->takeFirst())));
+    manager->get(QNetworkRequest(QUrl(repo->files.takeFirst())));
 }
