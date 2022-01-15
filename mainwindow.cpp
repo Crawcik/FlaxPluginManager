@@ -100,6 +100,7 @@ void MainWindow::on_apply_clicked()
     progressBar->show();
     if(!TryGitDownload(pluginDir))
     {
+       toDownload = new QList<Repo>;
         for(int i = 0; i < items->count(); i++)
         {
             Item* item = items->at(i);
@@ -110,12 +111,20 @@ void MainWindow::on_apply_clicked()
             }
             if(item->ui->checkState() != Qt::Checked)
                 continue;
-            connection = connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::TryZipDownload);
-            QString par = TREE_URL;
-            manager->get(QNetworkRequest(QUrl(par.arg("Crawcik/Journal"))));
-        }
-    }
 
+            //Setting toDownload
+            Repo repo {.item = item, .path = pluginDir, .files = new QStringList()};
+            if(pluginDir.exists(item->name))
+                pluginDir.mkdir(item->path);
+            repo.path.cd(item->name);
+            toDownload->append(repo);
+        }
+        downloadIndex = 0;
+        connection = connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::TryDirectDownload);
+        TryDirectDownload(nullptr);
+        return;
+    }
+    UpdateFiles();
 }
 
 void MainWindow::UpdateFiles()
@@ -367,42 +376,83 @@ bool MainWindow::TryGitDownload(const QDir &dir)
     return true;
 }
 
-void MainWindow::TryZipDownload(QNetworkReply *reply)
+void MainWindow::TryDirectDownload(QNetworkReply *reply)
 {
-    QString replyText = reply->readAll();
-    reply->deleteLater();
-    QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
-    if(doc.object().contains("tree"))
+    Repo repo = toDownload->takeAt(downloadIndex);
+    if(reply == nullptr)
     {
-        QString pattern = RAW_URL;
-        QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
-        QJsonArray arr = doc["tree"].toArray();
-        toDownload = new QList<QString>();
-        for (auto val : arr)
-        {
-            QJsonObject obj = val.toObject();
-            if(obj["type"].toString() != "blob")
-                continue;
-            replyText = obj["url"].toString();
-            replyText.remove("https://api.github.com/repos/");
-            replyText = replyText.split("/git/blobs/")[0];
-            replyText = pattern.arg(replyText) + obj["path"].toString();
-            toDownload->append(replyText);
-        }
-    }
-    else
-    {
-        replyText = doc["tree"].toString();
-        if(doc["encoding"].toString() == "base64")
-            replyText = QByteArray::fromBase64(replyText.toUtf8());
-    }
-
-    //Download next
-    if(toDownload->isEmpty())
-    {
-        disconnect(connection);
-        delete toDownload;
+        QString par = TREE_URL;
+        manager->get(QNetworkRequest(QUrl(par.arg(repo.item->url.remove(GITHUB_URL)))));
         return;
     }
-    manager->get(QNetworkRequest(QUrl(toDownload->takeFirst())));
+    QString url = reply->url().toString();
+    int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if(status == 200 || status == 302)
+    {
+        if(url.startsWith("https://api"))
+        {
+            // Create download tree
+            QString replyText = reply->readAll();
+            QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
+            QString pattern = RAW_URL;
+            QJsonArray arr = doc["tree"].toArray();
+
+            for (auto val : arr)
+            {
+                QJsonObject obj = val.toObject();
+                if(obj["type"].toString() != "blob")
+                    continue;
+                replyText = obj["url"].toString();
+                replyText.remove("https://api.github.com/repos/");
+                replyText = replyText.split("/git/blobs/")[0];
+                replyText = pattern.arg(replyText) + obj["path"].toString();
+                repo.files->append(replyText);
+            }
+            repo.initLenght = repo.files->length();
+        }
+        else
+        {
+            // Download file
+            QStringList pathSegments = reply->url().fileName().split('/');
+            int lenght = pathSegments.length();
+            QDir dir = repo.path;
+            for (int i = 4; i <= lenght; i++) {
+                QString seg = pathSegments[i];
+                if(i == lenght - 1)
+                {
+                    QFile file(dir.absoluteFilePath(seg));
+                    if(file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+                    {
+                        file.write(reply->readAll());
+                        file.close();
+                    }
+                    break;
+                }
+                if(!dir.exists(seg))
+                    dir.mkpath(seg);
+                dir.cd(seg);
+            }
+            float toDowLen = toDownload->length();
+            float percentage = downloadIndex / toDowLen;
+            percentage += (repo.initLenght - repo.files->length()) / (repo.initLenght * toDowLen);
+            progressBar->setValue(percentage * 100);
+        }
+    }
+    reply->deleteLater();
+
+    //Download next
+    if(repo.files->isEmpty())
+    {
+        delete repo.files;
+        downloadIndex++;
+        if(downloadIndex == toDownload->length())
+        {
+            disconnect(connection);
+            delete toDownload;
+            return;
+        }
+        TryDirectDownload(nullptr);
+        return;
+    }
+    manager->get(QNetworkRequest(QUrl(repo.files->takeFirst())));
 }
