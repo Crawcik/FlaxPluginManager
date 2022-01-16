@@ -13,8 +13,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QProcess>
-#include <zlib.h>
-
 
 #define LIST_URL "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json"
 #define TREE_URL "https://api.github.com/repos/%1/git/trees/master?recursive=true"
