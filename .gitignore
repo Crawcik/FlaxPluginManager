@@ -1,0 +1,9 @@
+﻿bin/
+obj/
+
+.idea/
+.vs/
+.vscode/
+*.sln
+
+*.suo.user

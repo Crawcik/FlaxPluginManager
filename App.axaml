@@ -1,0 +1,8 @@
+﻿<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FlaxPlugMan"
+             x:Class="FlaxPlugMan.App">
+    <Application.Styles>
+        <StyleInclude Source="avares://Avalonia.Themes.Fluent/FluentDark.xaml"></StyleInclude>
+    </Application.Styles>
+</Application>

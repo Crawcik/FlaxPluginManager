@@ -1,0 +1,27 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FlaxPlugMan.MainWindow"
+        Title="Select project"
+        Width="350" Height="600"
+        CanResize="false"
+        Background="#282e33">
+    <Window.Styles>
+        <Style Selector="Button,ProgressBar,Label,ListBox,CheckBox">
+            <Setter Property="FontFamily" Value="Arial" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="0.5*,0.5*">
+        <Label Name="Info"  Grid.Row="0" Grid.Column="0" FontSize="14" >Flax Plugin Manager</Label>
+        <ProgressBar Name="Progress" Grid.Row="0" Grid.Column="1" Value="70" Foreground="#283f9a"></ProgressBar>
+        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#18191d" BorderBrush="#283f9a" BorderThickness="3" CornerRadius="5">
+            <ListBox Name="PluginList" Background="Transparent" Items="{Binding Items}">
+            </ListBox>
+        </Border>
+        <Button Name="SelectButton" Grid.Row="2" Grid.Column="0" Background="#363c42" HorizontalContentAlignment="Center" Click="OnSelectClick">Select project</Button>
+        <Button Name="ApplyButton" Grid.Row="2" Grid.Column="1" Background="#363c42" HorizontalContentAlignment="Center" Click="OnApplyClick">Apply</Button>
+    </Grid>
+</Window>
