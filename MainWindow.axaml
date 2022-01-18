@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FlaxPlugMan.MainWindow"
         Title="Select project"
-        Width="350" Height="600"
+        Width="360" Height="600"
         CanResize="false"
         Background="#282e33">
     <Window.Styles>

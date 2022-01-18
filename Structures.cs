@@ -17,7 +17,8 @@ public class PluginListViewModel
         foreach (PluginEntry item in items)
         {
             CheckBox checkBox = new() { Content = item.name };
-            ToolTip.SetTip(checkBox, item.description);
+            if(!OperatingSystem.IsLinux())
+                ToolTip.SetTip(checkBox, item.description);
             Items.Add(checkBox);
         }
     }
