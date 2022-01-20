@@ -50,7 +50,7 @@ public class MainWindow : Window
             return;
         string path = Program.Args[0];
         if(File.Exists(path) && path.EndsWith(".flaxproj"))
-            SetProject(path);
+            SetProject(path).GetAwaiter();
     }
     
     private async Task GetPluginList()
@@ -92,15 +92,36 @@ public class MainWindow : Window
         _selectButton.IsEnabled = true;
         if (result is null)
             return;
-        SetProject(result[0]);
+        await SetProject(result[0]);
     }
 
-    private void SetProject(string path)
+    private async Task SetProject(string path)
     {
+        
+        try
+        {
+            var root = JObject.Parse(await File.ReadAllTextAsync(path));
+            foreach(var obj in root["References"])
+            {
+                var name = (string)obj["Name"];
+                var plugin = _plugins.FirstOrDefault(x=>name.Contains(x.ProjectFile));
+                if(plugin is not null)
+                    plugin.Ui.IsChecked = true;
+            }
+        }
+        catch
+        {
+#if DEBUG
+            Console.WriteLine("Project is invalid");
+#else
+            await MessageBox.Show(this, "Error", "Project file is invalid!");
+#endif
+        }
         _currentProjectPath = path;
         this.Title = Path.GetFileName(_currentProjectPath);
         _applyButton.IsEnabled = true;
         _pluginList.IsEnabled = true;
+        
     }
 
     private void OnApplyClick(object sender, RoutedEventArgs e)
@@ -146,6 +167,7 @@ public class MainWindow : Window
     {
         var root = JObject.Parse(await File.ReadAllTextAsync(_currentProjectPath));
         var array = (JArray)root["References"];
+        array = new JArray(array.Where(x => !_plugins.Any(y => ((string)x["Name"]).Contains(y.ProjectFile))));
         foreach (var item in _selectedPlugins)
         {
             var token = new JObject();
@@ -303,7 +325,14 @@ public class MainWindow : Window
                 }
                 File.WriteAllLines(gitmoduleFile, lines.Where(x=>x is not null));
             }
-            Directory.Delete(itemDir, true);
+            try
+            {
+                Directory.Delete(itemDir, true);
+            }
+            catch
+            {
+                // Windows is retarded 
+            }
         }
 
         // Update if needed;
@@ -381,7 +410,14 @@ public class MainWindow : Window
                 continue;
             }
             // Delete plugin
-            Directory.Delete(itemDir, true);
+            try
+            {
+                Directory.Delete(itemDir, true);
+            } 
+            catch
+            {
+                // Windows is retarded 
+            }
         }
         if(failedOnce)
             await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
@@ -390,7 +426,7 @@ public class MainWindow : Window
     private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()
     {
         FileName = "git",
-        UseShellExecute = shell,
+        UseShellExecute = false,
         WorkingDirectory = path,
         Arguments = args
     });

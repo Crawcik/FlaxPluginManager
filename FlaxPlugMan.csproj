@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
+        <OutputType>WinExe</OutputType>
         <TargetFramework>net6.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
 		<PublishSingleFile>true</PublishSingleFile>
@@ -8,6 +8,7 @@
 		<PublishReadyToRun>true</PublishReadyToRun>
     </PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<OutputType>Exe</OutputType>
 		<SelfContained>false</SelfContained>
 		<Obfuscate>false</Obfuscate>
 	</PropertyGroup>
