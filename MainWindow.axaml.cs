@@ -1,9 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
 using Avalonia.Markup.Xaml;
 using System.Diagnostics;
 
@@ -85,6 +83,7 @@ public class MainWindow : Window
 
     private async Task SelectProject()
     {
+        await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
         var dialog = new OpenFileDialog();
         dialog.Filters.Add(new() { Name = "Flaxproj", Extensions =  { "flaxproj" } });
         dialog.Directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -134,7 +133,11 @@ public class MainWindow : Window
         }
         catch (Exception exception)
         {
+#if DEBUG
             Console.WriteLine(exception.ToString());
+#else
+            await MessageBoxManager.GetMessageBoxStandardWindow("Error", "Updating project/files failed! Check if they're valid").Show(this);
+#endif
         }
         _applyButton.DataContext = "Apply";
         _cancelToken = null;
@@ -222,7 +225,7 @@ public class MainWindow : Window
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
         var gitmoduleFile = Path.Combine(fileInfo.DirectoryName, ".gitmodules");
         var gitmoduleExist = File.Exists(gitmoduleFile);
-        var submodule = false;
+        bool submodule = false, failedOnce = false;
 
         //Check if git exist
         var process = StartGitProcess("--version", shell: false);
@@ -256,7 +259,10 @@ public class MainWindow : Window
                     await process.WaitForExitAsync(cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     if (process.ExitCode != 0)
+                    {
+                        failedOnce = true;
                         item.Ui.IsEnabled = false;
+                    }
                 }
                 continue;
             }
@@ -270,8 +276,9 @@ public class MainWindow : Window
                 await process.WaitForExitAsync(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if(process.ExitCode != 0)
+                if (process.ExitCode != 0)
                 {
+                    failedOnce = true;
                     item.Ui.IsChecked = false;
                     item.Ui.IsEnabled = false;
                 }
@@ -307,6 +314,9 @@ public class MainWindow : Window
             await process.WaitForExitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
         }
+        if (failedOnce)
+            await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
+
         return true;
     }
 
@@ -316,6 +326,7 @@ public class MainWindow : Window
         using var client = new HttpClient();
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
         var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
+        var failedOnce = false;
         int done = -1;
         client.DefaultRequestHeaders.Add("User-Agent", "request");
         _progressBar.Value = 0d;
@@ -337,6 +348,7 @@ public class MainWindow : Window
                 int status = (int)response.StatusCode;
                 if (status != 200 && status != 304)
                 {
+                    failedOnce = true;
                     item.Ui.IsChecked = false;
                     item.Ui.IsEnabled = false;
                     continue;
@@ -351,11 +363,18 @@ public class MainWindow : Window
                     var obj = tree[i];
                     var filePath = Path.Combine(itemDir, (string)obj["path"]);
                     Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-                    var fileStream = File.OpenWrite(filePath);
-                    var webStream = await client.GetStreamAsync(url + (string)obj["path"], cancellationToken);
-                    await webStream.CopyToAsync(fileStream);
-                    webStream.Close();
-                    fileStream.Close();
+                    try
+                    {
+                        var fileStream = File.OpenWrite(filePath);
+                        var webStream = await client.GetStreamAsync(url + (string)obj["path"], cancellationToken);
+                        await webStream.CopyToAsync(fileStream);
+                        webStream.Close();
+                        fileStream.Close();
+                    }
+                    catch
+                    {
+                        failedOnce = true;
+                    }
                     var percentage = done / count;
                     percentage += (lenght - i) / (lenght * count);
                     _progressBar.Value = percentage * 100;
@@ -365,6 +384,8 @@ public class MainWindow : Window
             // Delete plugin
             Directory.Delete(itemDir, true);
         }
+        if(failedOnce)
+            await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
     }
 
     private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()

@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FlaxPlugMan.MessageBox" SizeToContent="WidthAndHeight" CanResize="False"
+        Background="#282e33">
+    <StackPanel HorizontalAlignment="Center" Margin="20">
+        <TextBlock FontSize="16" HorizontalAlignment="Center" Name="Text"/>
+        <StackPanel HorizontalAlignment="Center" Orientation="Horizontal" Name="Buttons">
+            <StackPanel.Styles>
+                <Style Selector="Button">
+                    <Setter Property="Margin" Value="5"/>
+                </Style>
+            </StackPanel.Styles>
+        </StackPanel>
+    </StackPanel>
+</Window>
+
