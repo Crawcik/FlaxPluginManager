@@ -118,15 +118,20 @@ public class MainWindow : Window
         try
         {
             Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
-            await TryGitDownload(_cancelToken.Token, fileInfo);
+            // Download files
+            if (!await TryGitDownload(_cancelToken.Token, fileInfo))
+            {
+                return;
+            }
+
+            // Update project
             _progressBar.IsVisible = false;
             _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
-            /*
             var gameTarget = await UpdateFlaxProject();
             await UpdateGameModules(gameTarget, fileInfo);
-            */
+            
         }
-        catch(Exception exception)
+        catch (Exception exception)
         {
             Console.WriteLine(exception.ToString());
         }
@@ -158,7 +163,7 @@ public class MainWindow : Window
     {
         var path = fileInfo.Directory.ToString();
         path += string.Format(GameModulePath, gameTarget is null ? "Game" : gameTarget.Replace("Target", null));
-        if(!File.Exists(path))
+        if (!File.Exists(path))
             return;
         using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         using var reader = new StreamReader(stream);
@@ -168,29 +173,29 @@ public class MainWindow : Window
         List<string> lines = new List<string>();
         int startLineNum = 0, lineNum = 0;
         var line = string.Empty;
-        while((line = await reader.ReadLineAsync()) is not null)
+        while ((line = await reader.ReadLineAsync()) is not null)
         {
             // Finding function pos
-            if(line.Contains("public override void Setup(BuildOptions options)"))
+            if (line.Contains("public override void Setup(BuildOptions options)"))
                 startLineNum = lineNum + (line.Contains('{') ? 1 : 2);
-            if(startLineNum != 0)
+            if (startLineNum != 0)
             {
                 bool con = false;
                 // Finding old dependencies
                 foreach (var item in _plugins)
                 {
-                    if(string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
+                    if (string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
                         continue;
                     con = true;
                     break;
                 }
-                if(con)
+                if (con)
                     continue;
 
                 // Adding new dependencies
-                if(startLineNum == lineNum)
+                if (startLineNum == lineNum)
                     foreach (var item in _selectedPlugins)
-                        if(!string.IsNullOrEmpty(item.ModuleName))
+                        if (!string.IsNullOrEmpty(item.ModuleName))
                             lines.Add(string.Format(ModuleDependency, item.ModuleName));
             }
             lines.Add(line);
@@ -243,12 +248,12 @@ public class MainWindow : Window
             var itemChecked = item.Ui.IsChecked ?? false;
             if (itemChecked == Directory.Exists(itemDir))
             {
-                if(itemChecked && !submodule)
+                if (itemChecked && !submodule)
                 {
                     process = StartGitProcess("pull", Path.Combine(dir, item.Name));
                     await process.WaitForExitAsync(cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
-                    if(process.ExitCode != 0)
+                    if (process.ExitCode != 0)
                         item.Ui.IsEnabled = false;
                 }
                 continue;
@@ -294,7 +299,7 @@ public class MainWindow : Window
         }
 
         // Update if needed;
-        if(submodule)
+        if (submodule)
         {
             process = StartGitProcess("submodule update --recursive", dir);
             await process.WaitForExitAsync(cancellationToken);
