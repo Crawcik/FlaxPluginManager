@@ -14,7 +14,6 @@ public class MainWindow : Window
     private const string
         Version = " 1.1",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
-        GameModulePath = "/Source/{0}/{0}.Build.cs",
         ModuleDependency = "        options.PrivateDependencies.Add(\"{0}\");";
 
     private IReadOnlyList<PluginEntry> _plugins;
@@ -104,7 +103,7 @@ public class MainWindow : Window
 
     private void OnApplyClick(object sender, RoutedEventArgs e)
     {
-        if(_applyButton.DataContext == "Cancel")
+        if(((string)_applyButton.DataContext) == "Cancel")
             _cancelToken.Cancel();
         else
             Update().GetAwaiter();
@@ -162,7 +161,8 @@ public class MainWindow : Window
     private async Task UpdateGameModules(string gameTarget, FileInfo fileInfo)
     {
         var path = fileInfo.Directory.ToString();
-        path += string.Format(GameModulePath, gameTarget is null ? "Game" : gameTarget.Replace("Target", null));
+        var target = gameTarget is null ? "Game" : gameTarget.Replace("Target", null);
+        path = Path.Combine(path, "Source", target, target + ".Build.cs");
         if (!File.Exists(path))
             return;
         using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
