@@ -14,6 +14,10 @@ public class MainWindow : Window
     private const string
         Version = " 1.1",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
+        TreeUrl = "https://api.github.com/repos/{0}/git/trees/master?recursive=true",
+        GithubUrl = "https://github.com/",
+        RawUrl = "https://raw.githubusercontent.com/{0}/master/",
+
         ModuleDependency = "        options.PrivateDependencies.Add(\"{0}\");";
 
     private IReadOnlyList<PluginEntry> _plugins;
@@ -119,9 +123,7 @@ public class MainWindow : Window
             Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
             // Download files
             if (!await TryGitDownload(_cancelToken.Token, fileInfo))
-            {
-                return;
-            }
+                await TryDirectDownload(_cancelToken.Token, fileInfo);
 
             // Update project
             _progressBar.IsVisible = false;
@@ -141,7 +143,7 @@ public class MainWindow : Window
     private async Task<string> UpdateFlaxProject()
     {
         var root = JObject.Parse(await File.ReadAllTextAsync(_currentProjectPath));
-        var array = JArray.Parse(root["References"].ToString());
+        var array = (JArray)root["References"];
         foreach (var item in _selectedPlugins)
         {
             var token = new JObject();
@@ -235,15 +237,15 @@ public class MainWindow : Window
         cancellationToken.ThrowIfCancellationRequested();
         if (process.ExitCode == 0)
             submodule = true;
-
-        var count = _plugins.Count(x=>x.Ui.IsChecked == Directory.Exists(Path.Combine(dir, x.Name)));
+        var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
         int done = 0;
 
         _progressBar.Value = 0d;
         _progressBar.IsVisible = true;
         foreach (var item in _plugins)
         {
-            _progressBar.Value = (done * 100) / count;
+            if(count > 0)
+                _progressBar.Value = (done * 100) / count;
             var itemDir = Path.Combine(dir, item.Name);
             var itemChecked = item.Ui.IsChecked ?? false;
             if (itemChecked == Directory.Exists(itemDir))
@@ -306,6 +308,62 @@ public class MainWindow : Window
             cancellationToken.ThrowIfCancellationRequested();
         }
         return true;
+    }
+
+    private async Task TryDirectDownload(CancellationToken cancellationToken, FileInfo fileInfo)
+    {
+        using var client = new HttpClient();
+        var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
+        var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
+        int done = -1;
+        client.DefaultRequestHeaders.Add("User-Agent", "request");
+        _progressBar.Value = 0d;
+        _progressBar.IsVisible = true;
+        foreach (var item in _plugins)
+        {
+            var itemDir = Path.Combine(dir, item.Name);
+            var itemChecked = item.Ui.IsChecked ?? false;
+            if (itemChecked == Directory.Exists(itemDir))
+                continue;
+            done++;
+            if(count > 0)
+                _progressBar.Value = (done * 100) / count;
+            if (itemChecked)
+            {
+                string repoLocation = item.Url.Replace(GithubUrl, null);
+                // Download plugin
+                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation), cancellationToken);
+                int status = (int)response.StatusCode;
+                if (status != 200 && status != 304)
+                {
+                    item.Ui.IsChecked = false;
+                    item.Ui.IsEnabled = false;
+                    continue;
+                }
+                
+                var root = JObject.Parse(await response.Content.ReadAsStringAsync());
+                var url = string.Format(RawUrl, repoLocation);
+                var tree = root["tree"].Where(x => (string)x["type"] == "blob").ToArray();
+                var lenght = tree.Count();
+                for (int i = 0; i < lenght; i++)
+                {
+                    var obj = tree[i];
+                    var filePath = Path.Combine(itemDir, (string)obj["path"]);
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                    var fileStream = File.OpenWrite(filePath);
+                    var webStream = await client.GetStreamAsync(url + (string)obj["path"], cancellationToken);
+                    await webStream.CopyToAsync(fileStream);
+                    webStream.Close();
+                    fileStream.Close();
+                    var percentage = done / count;
+                    percentage += (lenght - i) / (lenght * count);
+                    _progressBar.Value = percentage * 100;
+                }
+                continue;
+            }
+            // Delete plugin
+            Directory.Delete(itemDir, true);
+        }
     }
 
     private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()
