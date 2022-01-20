@@ -51,7 +51,12 @@ public class MainWindow : Window
         using HttpClient client = new();
         try
         {
-            _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(await client.GetStringAsync(ListUrl));
+#if DEBUG
+            string result = await File.ReadAllTextAsync("plugin_list.json");
+#else
+            string result = await client.GetStringAsync(ListUrl)
+#endif
+            _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(result);
         }
         catch (Exception e)
         {
@@ -95,7 +100,7 @@ public class MainWindow : Window
     private async Task Update()
     {
         var fileInfo = new FileInfo(_currentProjectPath);
-        _selectedPlugins = _plugins.Where(x => x.ui.IsChecked ?? false).ToList();
+        _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
         try
         {
             var gameTarget = await UpdateFlaxProject();
@@ -115,7 +120,7 @@ public class MainWindow : Window
         foreach (var item in _selectedPlugins)
         {
             var token = new JObject();
-            token.Add("Name", "$(ProjectPath)/Plugins/" + item.name + '/' + item.projectFile);
+            token.Add("Name", "$(ProjectPath)/Plugins/" + item.Name + '/' + item.ProjectFile);
             array.Add(token);
         }
         root["References"] = array;
@@ -153,7 +158,7 @@ public class MainWindow : Window
                 // Finding old dependencies
                 foreach (var item in _plugins)
                 {
-                    if(string.IsNullOrEmpty(item.moduleName) || !line.Contains('"' + item.moduleName + '"'))
+                    if(string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
                         continue;
                     con = true;
                     break;
@@ -164,8 +169,8 @@ public class MainWindow : Window
                 // Adding new dependencies
                 if(startLineNum == lineNum)
                     foreach (var item in _selectedPlugins)
-                        if(!string.IsNullOrEmpty(item.moduleName))
-                            lines.Add(string.Format(ModuleDependency, item.moduleName));
+                        if(!string.IsNullOrEmpty(item.ModuleName))
+                            lines.Add(string.Format(ModuleDependency, item.ModuleName));
             }
             lines.Add(line);
             lineNum++;
