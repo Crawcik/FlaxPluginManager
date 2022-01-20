@@ -12,11 +12,11 @@ namespace FlaxPlugMan;
 public class MainWindow : Window
 {
     private const string
-        Version = " 1.1",
+        Version = " 1.2",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
         TreeUrl = "https://api.github.com/repos/{0}/git/trees/master?recursive=true",
         GithubUrl = "https://github.com/",
-        RawUrl = "https://raw.githubusercontent.com/{0}/master/",
+        RawUrl = "https://raw.githubusercontent.com/{0}/{1}/",
 
         ModuleDependency = "        options.PrivateDependencies.Add(\"{0}\");";
 
@@ -310,6 +310,7 @@ public class MainWindow : Window
         return true;
     }
 
+    // TODO: Version checking
     private async Task TryDirectDownload(CancellationToken cancellationToken, FileInfo fileInfo)
     {
         using var client = new HttpClient();
@@ -332,7 +333,7 @@ public class MainWindow : Window
             {
                 string repoLocation = item.Url.Replace(GithubUrl, null);
                 // Download plugin
-                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation), cancellationToken);
+                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation, item.Branch ?? "master"), cancellationToken);
                 int status = (int)response.StatusCode;
                 if (status != 200 && status != 304)
                 {
