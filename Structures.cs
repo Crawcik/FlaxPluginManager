@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Avalonia.Controls;
 
 namespace FlaxPlugMan;
@@ -16,10 +17,10 @@ public class PluginListViewModel
         Items = new();
         foreach (PluginEntry item in items)
         {
-            CheckBox checkBox = new() { Content = item.name };
+            item.ui = new() { Content = item.name };
             if(!OperatingSystem.IsLinux())
-                ToolTip.SetTip(checkBox, item.description);
-            Items.Add(checkBox);
+                ToolTip.SetTip(item.ui, item.description);
+            Items.Add(item.ui);
         }
     }
 }

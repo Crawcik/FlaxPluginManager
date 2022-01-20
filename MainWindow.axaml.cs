@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -47,7 +48,7 @@ public class MainWindow : Window
         using HttpClient client = new();
         try
         {
-            Plugins = await client.GetFromJsonAsync<List<PluginEntry>>(ListUrl);
+            Plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(await client.GetStringAsync(ListUrl));
         }
         catch (Exception e)
         {
@@ -73,6 +74,7 @@ public class MainWindow : Window
         dialog.AllowMultiple = false;
         dialog.Title = "Select flax project";
         string[] result = await dialog.ShowAsync(this);
+        _selectButton.IsEnabled = true;
         if (result is null)
             return;
         _currentProjectPath = result[0];
@@ -83,6 +85,30 @@ public class MainWindow : Window
 
     private void OnApplyClick(object? sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        _applyButton.IsEnabled = false;
+        Update().GetAwaiter();
+    }
+
+    private async Task Update()
+    {
+        var fileInfo = new FileInfo(_currentProjectPath);
+        await UpdateFlaxProject();
+        _applyButton.IsEnabled = true;
+    }
+
+    private async Task UpdateFlaxProject()
+    {
+        var root = JObject.Parse(await File.ReadAllTextAsync(_currentProjectPath));
+        var selectedItems = Plugins.Where(x => x.ui.IsChecked ?? false).ToArray();
+        var array = JArray.Parse(root["References"].ToString());
+        foreach (var item in selectedItems)
+        {
+            var token = new JObject();
+            token.Add("Name", "$(ProjectPath)/Plugins/" + item.name + '/' + item.projectFile);
+            array.Add(token);
+        }
+        root["References"] = array;
+        var str = root.ToString(Formatting.Indented);
+        File.WriteAllText(_currentProjectPath, str);
     }
 }
