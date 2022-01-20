@@ -1,0 +1,32 @@
+name: Continuous deployment
+
+on:  
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [linux-x64, win-x64]
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Publish
+      run: dotnet publish -c Release -r ${{ matrix.rid }} --self-contained
+    
+    - name: Archive Build
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-${{ matrix.rid }}
+        path: bin/Release/net6.0/${{ matrix.rid }}/publish/*

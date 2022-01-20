@@ -54,7 +54,7 @@ public class MainWindow : Window
 #if DEBUG
             string result = await File.ReadAllTextAsync("plugin_list.json");
 #else
-            string result = await client.GetStringAsync(ListUrl)
+            string result = await client.GetStringAsync(ListUrl);
 #endif
             _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(result);
         }
