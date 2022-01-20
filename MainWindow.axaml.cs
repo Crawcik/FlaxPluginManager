@@ -83,7 +83,6 @@ public class MainWindow : Window
 
     private async Task SelectProject()
     {
-        await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
         var dialog = new OpenFileDialog();
         dialog.Filters.Add(new() { Name = "Flaxproj", Extensions =  { "flaxproj" } });
         dialog.Directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -136,7 +135,7 @@ public class MainWindow : Window
 #if DEBUG
             Console.WriteLine(exception.ToString());
 #else
-            await MessageBoxManager.GetMessageBoxStandardWindow("Error", "Updating project/files failed! Check if they're valid").Show(this);
+            await MessageBox.Show(this, "Error", "Updating project files failed! Check if they're valid");
 #endif
         }
         _applyButton.DataContext = "Apply";
