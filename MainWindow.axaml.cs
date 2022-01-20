@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Markup.Xaml;
+using System.Diagnostics;
 
 namespace FlaxPlugMan;
 
@@ -18,43 +19,48 @@ public class MainWindow : Window
 
     private IReadOnlyList<PluginEntry> _plugins;
     private IReadOnlyList<PluginEntry> _selectedPlugins;
-    private IReadOnlyList<PluginEntry> _unselectedPlugins;
-    private ProgressBar _progress;
+    private ProgressBar _progressBar;
     private ListBox _pluginList;
     private PluginListViewModel _pluginListView;
     private Button _selectButton;
     private Button _applyButton;
     private string _currentProjectPath;
+    private CancellationTokenSource _cancelToken;
 
     public MainWindow()
     {
         InitializeComponent();
         GetPluginList().GetAwaiter();
-    } 
+    }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
         this.FindControl<Label>("Info").Content += Version;
-        _progress = this.FindControl<ProgressBar>("Progress");
+        _progressBar = this.FindControl<ProgressBar>("Progress");
         _pluginList = this.FindControl<ListBox>("PluginList");
         _selectButton = this.FindControl<Button>("SelectButton");
         _applyButton = this.FindControl<Button>("ApplyButton");
-        _progress.Value = 0;
-        _progress.IsVisible = false;
+        _progressBar.Value = 0;
         _applyButton.IsEnabled = false;
+        _progressBar.IsVisible = false;
         _pluginList.IsEnabled = false;
+        if(Program.Args is null || Program.Args.Length == 0)
+            return;
+        string path = Program.Args[0];
+        if(File.Exists(path) && path.EndsWith(".flaxproj"))
+            SetProject(path);
     }
     
     private async Task GetPluginList()
     {
-        using HttpClient client = new();
+        using var client = new HttpClient();
         try
         {
 #if DEBUG
-            string result = await File.ReadAllTextAsync("plugin_list.json");
+            var result = await File.ReadAllTextAsync("plugin_list.json");
 #else
-            string result = await client.GetStringAsync(ListUrl);
+            var result = await client.GetStringAsync(ListUrl);
 #endif
             _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(result);
         }
@@ -68,7 +74,7 @@ public class MainWindow : Window
         _pluginList.DataContext = _pluginListView = new PluginListViewModel(_plugins);
     }
 
-    private void OnSelectClick(object? sender, RoutedEventArgs e)
+    private void OnSelectClick(object sender, RoutedEventArgs e)
     {
         _selectButton.IsEnabled = false;
         SelectProject().GetAwaiter();
@@ -76,41 +82,56 @@ public class MainWindow : Window
 
     private async Task SelectProject()
     {
-        OpenFileDialog dialog = new();
+        var dialog = new OpenFileDialog();
         dialog.Filters.Add(new() { Name = "Flaxproj", Extensions =  { "flaxproj" } });
         dialog.Directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         dialog.AllowMultiple = false;
         dialog.Title = "Select flax project";
-        string[] result = await dialog.ShowAsync(this);
+        var result = await dialog.ShowAsync(this);
         _selectButton.IsEnabled = true;
         if (result is null)
             return;
-        _currentProjectPath = result[0];
+        SetProject(result[0]);
+    }
+
+    private void SetProject(string path)
+    {
+        _currentProjectPath = path;
         this.Title = Path.GetFileName(_currentProjectPath);
         _applyButton.IsEnabled = true;
         _pluginList.IsEnabled = true;
     }
 
-    private void OnApplyClick(object? sender, RoutedEventArgs e)
+    private void OnApplyClick(object sender, RoutedEventArgs e)
     {
-        _applyButton.IsEnabled = false;
-        Update().GetAwaiter();
+        if(_applyButton.DataContext == "Cancel")
+            _cancelToken.Cancel();
+        else
+            Update().GetAwaiter();
     }
 
     private async Task Update()
     {
         var fileInfo = new FileInfo(_currentProjectPath);
-        _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
+        _cancelToken = new CancellationTokenSource();
+        _applyButton.DataContext = "Cancel";
         try
         {
+            Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
+            await TryGitDownload(_cancelToken.Token, fileInfo);
+            _progressBar.IsVisible = false;
+            _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
+            /*
             var gameTarget = await UpdateFlaxProject();
             await UpdateGameModules(gameTarget, fileInfo);
+            */
         }
         catch(Exception exception)
         {
             Console.WriteLine(exception.ToString());
         }
-        _applyButton.IsEnabled = true;
+        _applyButton.DataContext = "Apply";
+        _cancelToken = null;
     }
 
     private async Task<string> UpdateFlaxProject()
@@ -188,4 +209,105 @@ public class MainWindow : Window
     
         writer.Close();
     }
+
+    private async Task<bool> TryGitDownload(CancellationToken cancellationToken, FileInfo fileInfo)
+    {
+        var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
+        var gitmoduleFile = Path.Combine(fileInfo.DirectoryName, ".gitmodules");
+        var gitmoduleExist = File.Exists(gitmoduleFile);
+        var submodule = false;
+
+        //Check if git exist
+        var process = StartGitProcess("--version", shell: false);
+        await process.WaitForExitAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (process.ExitCode != 0)
+            return false;
+
+        // Check if project is repository
+        process = StartGitProcess("status", dir);
+        await process.WaitForExitAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (process.ExitCode == 0)
+            submodule = true;
+
+        var count = _plugins.Count(x=>x.Ui.IsChecked == Directory.Exists(Path.Combine(dir, x.Name)));
+        int done = 0;
+
+        _progressBar.Value = 0d;
+        _progressBar.IsVisible = true;
+        foreach (var item in _plugins)
+        {
+            _progressBar.Value = (done * 100) / count;
+            var itemDir = Path.Combine(dir, item.Name);
+            var itemChecked = item.Ui.IsChecked ?? false;
+            if (itemChecked == Directory.Exists(itemDir))
+            {
+                if(itemChecked && !submodule)
+                {
+                    process = StartGitProcess("pull", Path.Combine(dir, item.Name));
+                    await process.WaitForExitAsync(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if(process.ExitCode != 0)
+                        item.Ui.IsEnabled = false;
+                }
+                continue;
+            }
+
+            done++;
+            if (itemChecked)
+            {
+                // Download plugin
+                var arg = (submodule ? "submodule add -f" : "clone") + $" {item.Url} \"{item.Name}\"";
+                process = StartGitProcess(arg, dir);
+                await process.WaitForExitAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if(process.ExitCode != 0)
+                {
+                    item.Ui.IsChecked = false;
+                    item.Ui.IsEnabled = false;
+                }
+                continue;
+            }
+
+            // Delete plugin
+            if (submodule && gitmoduleExist)
+            {
+                
+                process = StartGitProcess("submodule deinit -f " + item.Name, dir);
+                await process.WaitForExitAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string[] lines = File.ReadAllLines(gitmoduleFile);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i];
+                    if (!line.StartsWith('[') || !line.Contains(item.Name))
+                        continue;
+                    lines[i] = lines[i+1] = lines[i+2] = null;
+                    i += 2;
+                }
+                File.WriteAllLines(gitmoduleFile, lines.Where(x=>x is not null));
+            }
+            Directory.Delete(itemDir, true);
+        }
+
+        // Update if needed;
+        if(submodule)
+        {
+            process = StartGitProcess("submodule update --recursive", dir);
+            await process.WaitForExitAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        return true;
+    }
+
+    private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()
+    {
+        FileName = "git",
+        UseShellExecute = shell,
+        WorkingDirectory = path,
+        Arguments = args
+    });
 }
