@@ -12,7 +12,7 @@ namespace FlaxPlugMan;
 public class MainWindow : Window
 {
     private const string
-        Version = " 1.2",
+        Version = " 1.1",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
         GameModulePath = "/Source/{0}/{0}.Build.cs",
         ModuleDependency = "        options.PrivateDependencies.Add(\"{0}\");";
