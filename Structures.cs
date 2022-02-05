@@ -4,7 +4,7 @@ using Avalonia.Controls;
 
 namespace FlaxPlugMan;
 
-public record PluginEntry(string Name, string Description, string Url, string Branch, string ModuleName, string ProjectFile)
+public record PluginEntry(string Name, string Description, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
 {
     public CheckBox Ui { get; set; }
 }
