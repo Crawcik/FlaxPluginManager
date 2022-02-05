@@ -10,13 +10,13 @@ namespace FlaxPlugMan;
 public class MainWindow : Window
 {
     private const string
-        Version = " 1.2",
+        Version = " 1.3",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
         TreeUrl = "https://api.github.com/repos/{0}/git/trees/master?recursive=true",
         GithubUrl = "https://github.com/",
         RawUrl = "https://raw.githubusercontent.com/{0}/{1}/",
 
-        ModuleDependency = "        options.PrivateDependencies.Add(\"{0}\");";
+        ModuleDependency = "options.PrivateDependencies.Add(\"{0}\");";
 
     private IReadOnlyList<PluginEntry> _plugins;
     private IReadOnlyList<PluginEntry> _selectedPlugins;
@@ -193,52 +193,102 @@ public class MainWindow : Window
             return;
         using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         using var reader = new StreamReader(stream);
+#if DEBUG
         using var writer = new StreamWriter(stream);
+#endif
 
         // Read and arrange
-        List<string> lines = new List<string>();
+        var lines = new List<string>();
         int startLineNum = 0, lineNum = 0;
         var line = string.Empty;
+        bool platformDepSwitch = false;
         while ((line = await reader.ReadLineAsync()) is not null)
         {
             // Finding function pos
-            if (line.Contains("public override void Setup(BuildOptions options)"))
-                startLineNum = lineNum + (line.Contains('{') ? 1 : 2);
-            if (startLineNum != 0)
+            if (startLineNum == 0)
+            {
+                if (line.Contains("public override void Setup(BuildOptions options)"))
+                    startLineNum = lineNum + (line.Contains('{') ? 1 : 2);
+            }
+            else
             {
                 bool con = false;
+                
                 // Finding old dependencies
-                foreach (var item in _plugins)
+                if (line.Contains("Do not remove this comment (FlaxPlugMan)"))
+                    platformDepSwitch = true;
+                if(platformDepSwitch)
                 {
-                    if (string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
-                        continue;
                     con = true;
-                    break;
+                    platformDepSwitch = !line.Contains("}");
+                }
+                else
+                {
+                    foreach (var item in _plugins)
+                    {
+                        if (string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
+                            continue;
+                        con = true;
+                        break;
+                    }
                 }
                 if (con)
                     continue;
 
                 // Adding new dependencies
                 if (startLineNum == lineNum)
+                {
+                    var platformSpecific = new Dictionary<string, List<string>>();
                     foreach (var item in _selectedPlugins)
-                        if (!string.IsNullOrEmpty(item.ModuleName))
-                            lines.Add(string.Format(ModuleDependency, item.ModuleName));
+                    {
+                        if (item.ModuleName is null)
+                            continue;
+                        if (item.Platforms is null)
+                        {
+                            lines.Add("\t\t" + string.Format(ModuleDependency, item.ModuleName));
+                            continue;
+                        }
+                        foreach(var str in item.Platforms)
+                        {
+                            if(!platformSpecific.ContainsKey(str))
+                                platformSpecific.Add(str, new List<string>());
+                            platformSpecific[str].Add(item.ModuleName);
+                        }
+                    }
+                    if (platformSpecific.Count > 0)
+                    {
+                        lines.Add("\t\tswitch (options.Platform.Target) // Do not remove this comment (FlaxPlugMan)");
+                        lines.Add("\t\t{");
+                        foreach (var pair in platformSpecific)
+                        {
+                            lines.Add("\t\t\tcase TargetPlatform." + pair.Key + ":");
+                            foreach(var moduleName in pair.Value)
+                                lines.Add("\t\t\t\t" + string.Format(ModuleDependency, moduleName));
+                            lines.Add("\t\t\t\tbreak;");
+                        }
+                        lines.Add("\t\t}");
+                    }
+                }
+                            
             }
             lines.Add(line);
             lineNum++;
         }
 
         // Write to file
+#if !DEBUG
         stream.Seek(0, SeekOrigin.Begin);
         stream.SetLength(0);
+#endif
         foreach (var tmp in lines)
 #if DEBUG
             Console.WriteLine(tmp);
 #else
             await writer.WriteLineAsync(tmp);
 #endif
-    
+#if !DEBUG
         writer.Close();
+#endif
     }
 
     private async Task<bool> TryGitDownload(CancellationToken cancellationToken, FileInfo fileInfo)
