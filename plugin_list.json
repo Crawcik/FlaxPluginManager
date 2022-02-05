@@ -29,7 +29,7 @@
 	},
 	{
 		"name": "Online Platform Steam",
-		"description": " Online platform implementation of Steam for games made with Flax Engine ",
+		"description": "Online platform implementation of Steam for games made with Flax Engine",
 		"url": "https://github.com/FlaxEngine/OnlinePlatformSteam",
 		"moduleName": "OnlinePlatformSteam",
 		"projectFile": "OnlinePlatformSteam.flaxproj",
@@ -41,7 +41,7 @@
 	},
 	{
 		"name": "Online Platform Xbox Live",
-		"description": " Online platform implementation of Xbox Live for games made with Flax Engine ",
+		"description": "Online platform implementation of Xbox Live for games made with Flax Engine",
 		"url": "https://github.com/FlaxEngine/OnlinePlatformXboxLive",
 		"moduleName": "OnlinePlatformXboxLive",
 		"projectFile": "OnlinePlatformXboxLive.flaxproj",
@@ -49,5 +49,11 @@
 			"XboxOne",
 			"XboxScarlett"
 		]
+	},
+	{
+		"name": "UE4 Content Importer",
+		"description": "Plugin for working with UE4 assets",
+		"url": "https://github.com/chicken-with-lips/flax-plugin-ue4-utilities",
+		"projectFile": "UE4ContentImporter.flaxproj"
 	}
 ]
