@@ -193,7 +193,7 @@ public class MainWindow : Window
             return;
         using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
         using var reader = new StreamReader(stream);
-#if DEBUG
+#if !DEBUG
         using var writer = new StreamWriter(stream);
 #endif
 
