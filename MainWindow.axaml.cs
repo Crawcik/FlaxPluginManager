@@ -31,6 +31,9 @@ public class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+#if DEBUG
+        MessageBox.Show(null, "Warning", "Program is in DEBUG mode. Project files will not be updated!");
+#endif
         GetPluginList().GetAwaiter();
         GitCheckSupport().GetAwaiter();
     }
