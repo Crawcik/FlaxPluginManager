@@ -15,12 +15,12 @@ public class MainWindow : Window
         TreeUrl = "https://api.github.com/repos/{0}/git/trees/master?recursive=true",
         GithubUrl = "https://github.com/",
         RawUrl = "https://raw.githubusercontent.com/{0}/{1}/",
-
         ModuleDependency = "options.PrivateDependencies.Add(\"{0}\");";
 
     private IReadOnlyList<PluginEntry> _plugins;
     private IReadOnlyList<PluginEntry> _selectedPlugins;
     private ProgressBar _progressBar;
+    private CheckBox _gitSupportBox;
     private ListBox _pluginList;
     private PluginListViewModel _pluginListView;
     private Button _selectButton;
@@ -32,6 +32,7 @@ public class MainWindow : Window
     {
         InitializeComponent();
         GetPluginList().GetAwaiter();
+        GitCheckSupport().GetAwaiter();
     }
 
     private void InitializeComponent()
@@ -42,6 +43,7 @@ public class MainWindow : Window
         _pluginList = this.FindControl<ListBox>("PluginList");
         _selectButton = this.FindControl<Button>("SelectButton");
         _applyButton = this.FindControl<Button>("ApplyButton");
+        _gitSupportBox = this.FindControl<CheckBox>("GitSupport");
         _progressBar.Value = 0;
         _applyButton.IsEnabled = false;
         _progressBar.IsVisible = false;
@@ -75,6 +77,14 @@ public class MainWindow : Window
         _pluginList.DataContext = _pluginListView = new PluginListViewModel(_plugins);
     }
 
+    private async Task GitCheckSupport()
+    {
+        var process = StartGitProcess("--version", shell: false);
+        await process.WaitForExitAsync();
+        if (process.ExitCode == 0)
+            _gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
+    }
+
     private void OnSelectClick(object sender, RoutedEventArgs e)
     {
         _selectButton.IsEnabled = false;
@@ -97,7 +107,6 @@ public class MainWindow : Window
 
     private async Task SetProject(string path)
     {
-        
         try
         {
             var root = JObject.Parse(await File.ReadAllTextAsync(path));
@@ -293,20 +302,15 @@ public class MainWindow : Window
 
     private async Task<bool> TryGitDownload(CancellationToken cancellationToken, FileInfo fileInfo)
     {
+        if((!_gitSupportBox.IsChecked) ?? true)
+            return false;
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
         var gitmoduleFile = Path.Combine(fileInfo.DirectoryName, ".gitmodules");
         var gitmoduleExist = File.Exists(gitmoduleFile);
         bool submodule = false, failedOnce = false;
 
-        //Check if git exist
-        var process = StartGitProcess("--version", shell: false);
-        await process.WaitForExitAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (process.ExitCode != 0)
-            return false;
-
         // Check if project is repository
-        process = StartGitProcess("status", dir);
+        var process = StartGitProcess("status", dir);
         await process.WaitForExitAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (process.ExitCode == 0)
