@@ -153,15 +153,15 @@ public class MainWindow : Window
         {
             Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
             // Download files
-            if (!await TryGitDownload(_cancelToken.Token, fileInfo, out var failedOnce))
-                await TryDirectDownload(_cancelToken.Token, fileInfo, out failedOnce);
+            if (!await TryGitDownload(_cancelToken.Token, fileInfo))
+                await TryDirectDownload(_cancelToken.Token, fileInfo);
 
             // Update project
             _progressBar.IsVisible = false;
             _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
             var gameTarget = await UpdateFlaxProject();
             await UpdateGameModules(gameTarget, fileInfo);
-            await MessageBox.Show(this, failedOnce ? "Warning" : "Info", failedOnce ? "Downloading some plugin files failed!" : "Success!");
+            await MessageBox.Show(this, "Info", "Success!");
             
         }
         catch (Exception exception)
@@ -172,6 +172,7 @@ public class MainWindow : Window
             await MessageBox.Show(this, "Error", "Updating project files failed! Check if they're valid");
 #endif
         }
+        
         _applyButton.DataContext = "Apply";
         _cancelToken = null;
     }
@@ -304,15 +305,14 @@ public class MainWindow : Window
 #endif
     }
 
-    private async Task<bool> TryGitDownload(CancellationToken cancellationToken, FileInfo fileInfo, out bool failedOnce)
+    private async Task<bool> TryGitDownload(CancellationToken cancellationToken, FileInfo fileInfo)
     {
-        failedOnce = false;
         if((!_gitSupportBox.IsChecked) ?? true)
             return false;
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
         var gitmoduleFile = Path.Combine(fileInfo.DirectoryName, ".gitmodules");
         var gitmoduleExist = File.Exists(gitmoduleFile);
-        bool submodule = false;
+        bool submodule = false, failedOnce = false;
 
         // Check if project is repository
         var process = StartGitProcess("status", dir);
@@ -401,16 +401,19 @@ public class MainWindow : Window
             await process.WaitForExitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
         }
+        if (failedOnce)
+            await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
+
         return true;
     }
 
     // TODO: Version checking
-    private async Task TryDirectDownload(CancellationToken cancellationToken, FileInfo fileInfo, out bool failedOnce)
+    private async Task TryDirectDownload(CancellationToken cancellationToken, FileInfo fileInfo)
     {
-        failedOnce = false;
         using var client = new HttpClient();
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
         var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
+        var failedOnce = false;
         int done = -1;
         client.DefaultRequestHeaders.Add("User-Agent", "request");
         _progressBar.Value = 0d;
@@ -475,6 +478,8 @@ public class MainWindow : Window
                 // Windows is retarded 
             }
         }
+        if(failedOnce)
+            await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
     }
 
     private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()
