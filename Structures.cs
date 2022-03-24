@@ -7,6 +7,11 @@ namespace FlaxPlugMan;
 public record PluginEntry(string Name, string Description, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
 {
     public CheckBox Ui { get; set; }
+
+    public bool Installed { get; set; }
+    public bool? isGitManaged { get; set; }
+    public string CurrentVersion { get; set; }
+	public string Path { get; set; }
 }
 
 public class PluginListViewModel

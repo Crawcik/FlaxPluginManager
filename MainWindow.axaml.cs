@@ -12,7 +12,7 @@ public class MainWindow : Window
     private const string
         Version = " 1.3",
         ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
-        TreeUrl = "https://api.github.com/repos/{0}/git/trees/master?recursive=true",
+        TreeUrl = "https://api.github.com/repos/{0}/git/trees/{1}",
         GithubUrl = "https://github.com/",
         RawUrl = "https://raw.githubusercontent.com/{0}/{1}/",
         ModuleDependency = "options.PrivateDependencies.Add(\"{0}\");";
@@ -69,20 +69,21 @@ public class MainWindow : Window
             var result = await client.GetStringAsync(ListUrl);
 #endif
             _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(result);
+            _pluginList.DataContext = _pluginListView = new PluginListViewModel(_plugins);
+            foreach (var item in _plugins)
+            {
+
+            }
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
         }
-        if (_plugins is null)
-            return;
-
-        _pluginList.DataContext = _pluginListView = new PluginListViewModel(_plugins);
     }
 
     private async Task GitCheckSupport()
     {
-        var process = StartGitProcess("--version", shell: false);
+        var process = StartGitProcess("--version");
         await process.WaitForExitAsync();
         if (process.ExitCode == 0)
             _gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
@@ -110,6 +111,8 @@ public class MainWindow : Window
 
     private async Task SetProject(string path)
     {
+        foreach(var item in _plugins)
+            item.Installed = false;
         try
         {
             var root = JObject.Parse(await File.ReadAllTextAsync(path));
@@ -117,8 +120,13 @@ public class MainWindow : Window
             {
                 var name = (string)obj["Name"];
                 var plugin = _plugins.FirstOrDefault(x=>name.Contains(x.ProjectFile));
-                if(plugin is not null)
-                    plugin.Ui.IsChecked = true;
+                if(plugin is null)
+                    return;
+                plugin.Ui.IsChecked = true;
+                plugin.Installed = true;
+                plugin.Path = name;
+                if(!await IsUpdateNeeded(plugin))
+                    return;
             }
         }
         catch
@@ -132,8 +140,7 @@ public class MainWindow : Window
         _currentProjectPath = path;
         this.Title = Path.GetFileName(_currentProjectPath);
         _applyButton.IsEnabled = true;
-        _pluginList.IsEnabled = true;
-        
+        _pluginList.IsEnabled = true;   
     }
 
     private void OnApplyClick(object sender, RoutedEventArgs e)
@@ -431,7 +438,7 @@ public class MainWindow : Window
             {
                 string repoLocation = item.Url.Replace(GithubUrl, null);
                 // Download plugin
-                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation, item.Branch ?? "master"), cancellationToken);
+                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation, item.Branch ?? "master") + "?recursive=true", cancellationToken);
                 int status = (int)response.StatusCode;
                 if (status != 200 && status != 304)
                 {
@@ -482,7 +489,64 @@ public class MainWindow : Window
             await MessageBox.Show(this, "Warning", "Downloading some plugin files failed!");
     }
 
-    private Process StartGitProcess(string args, string path = "", bool shell = true) => Process.Start(new ProcessStartInfo()
+    private async Task<bool> IsUpdateNeeded(PluginEntry item)
+    {
+        if(_currentProjectPath is null || !item.Installed)
+            return false;
+        string path = item.Path;
+        string local = null, remote = null;
+
+        try
+        {
+            if(path.Contains("$(ProjectPath)/Plugins/"))
+                path.Replace("$(ProjectPath)", Path.GetDirectoryName(_currentProjectPath));
+            path = Path.Combine(path, ".plugin-version");
+            if(File.Exists(path))
+            {
+                //Direct version
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "request");
+                string repoLocation = item.Url.Replace(GithubUrl, null);
+                // Download plugin
+                HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation, item.Branch ?? "master") + "?recursive=true");
+                var root = JObject.Parse(await response.Content.ReadAsStringAsync());
+                int status = (int)response.StatusCode;
+                if (status == 200 || status == 304)
+                {
+                    local = await File.ReadAllTextAsync(path);
+                    remote = (string)root["sha"];
+                }
+            }
+            else
+            {
+                //Git version
+                var process = StartGitProcess("rev-parse " + item.Branch ?? "master");
+                string output = await process.StandardOutput.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                if(process.ExitCode == 0)
+                {
+                    local = output;
+                    process = StartGitProcess("rev-parse origin/" + item.Branch ?? "master");
+                    await process.WaitForExitAsync();
+                    if(process.ExitCode == 0)
+                        remote = output;
+                }
+            }
+        }
+        catch(Exception exp)
+        {
+            Console.WriteLine(exp);
+            return false;
+        }
+        return local != remote;
+    }
+
+    private void SaveVersion(PluginEntry item)
+    {
+        
+    }
+
+    private Process StartGitProcess(string args, string path = "") => Process.Start(new ProcessStartInfo()
     {
         FileName = "git",
         UseShellExecute = false,
