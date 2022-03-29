@@ -38,6 +38,14 @@ public class MainWindow : Window
         GitCheckSupport().GetAwaiter();
     }
 
+    public void UpdateManually(PluginEntry plugin)
+    {
+        if (plugin.Installed)
+        {
+            
+        }
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
@@ -70,10 +78,6 @@ public class MainWindow : Window
 #endif
             _plugins = JsonConvert.DeserializeObject<List<PluginEntry>>(result);
             _pluginList.DataContext = _pluginListView = new PluginListViewModel(_plugins);
-            foreach (var item in _plugins)
-            {
-
-            }
         }
         catch (Exception e)
         {
@@ -122,11 +126,10 @@ public class MainWindow : Window
                 var plugin = _plugins.FirstOrDefault(x=>name.Contains(x.ProjectFile));
                 if(plugin is null)
                     return;
-                plugin.Ui.IsChecked = true;
+                plugin.CheckUi.IsChecked = true;
                 plugin.Installed = true;
-                plugin.Path = name;
-                if(!await IsUpdateNeeded(plugin))
-                    return;
+                plugin.SetPath(_currentProjectPath, name);
+                plugin.UpdateUi.IsVisible = await IsUpdateNeeded(plugin);
             }
         }
         catch
@@ -148,10 +151,10 @@ public class MainWindow : Window
         if(((string)_applyButton.DataContext) == "Cancel")
             _cancelToken.Cancel();
         else
-            Update().GetAwaiter();
+            UpdateAll().GetAwaiter();
     }
 
-    private async Task Update()
+    private async Task UpdateAll()
     {
         var fileInfo = new FileInfo(_currentProjectPath);
         _cancelToken = new CancellationTokenSource();
@@ -165,7 +168,7 @@ public class MainWindow : Window
 
             // Update project
             _progressBar.IsVisible = false;
-            _selectedPlugins = _plugins.Where(x => x.Ui.IsChecked ?? false).ToList();
+            _selectedPlugins = _plugins.Where(x => x.CheckUi.IsChecked ?? false).ToList();
             var gameTarget = await UpdateFlaxProject();
             await UpdateGameModules(gameTarget, fileInfo);
             await MessageBox.Show(this, "Info", "Success!");
@@ -327,7 +330,7 @@ public class MainWindow : Window
         cancellationToken.ThrowIfCancellationRequested();
         if (process.ExitCode == 0)
             submodule = true;
-        var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
+        var count = _plugins.Count(x => x.CheckUi.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
         int done = 0;
 
         _progressBar.Value = 0d;
@@ -337,7 +340,9 @@ public class MainWindow : Window
             if(count > 0)
                 _progressBar.Value = (done * 100) / count;
             var itemDir = Path.Combine(dir, item.Name);
-            var itemChecked = item.Ui.IsChecked ?? false;
+            var itemChecked = item.CheckUi.IsChecked ?? false;
+            item.SetPath(null, itemDir);
+            item.IsGitManaged = true;
             if (itemChecked == Directory.Exists(itemDir))
             {
                 if (itemChecked && !submodule)
@@ -348,12 +353,12 @@ public class MainWindow : Window
                     if (process.ExitCode != 0)
                     {
                         failedOnce = true;
-                        item.Ui.IsEnabled = false;
+                        item.CheckUi.IsEnabled = false;
                     }
                 }
+                item.Installed = true;
                 continue;
             }
-
             done++;
             if (itemChecked)
             {
@@ -366,9 +371,10 @@ public class MainWindow : Window
                 if (process.ExitCode != 0)
                 {
                     failedOnce = true;
-                    item.Ui.IsChecked = false;
-                    item.Ui.IsEnabled = false;
+                    item.CheckUi.IsChecked = false;
+                    item.CheckUi.IsEnabled = false;
                 }
+                item.Installed = true;
                 continue;
             }
 
@@ -419,7 +425,7 @@ public class MainWindow : Window
     {
         using var client = new HttpClient();
         var dir = Path.Combine(fileInfo.DirectoryName, "Plugins");
-        var count = _plugins.Count(x => x.Ui.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
+        var count = _plugins.Count(x => x.CheckUi.IsChecked != Directory.Exists(Path.Combine(dir, x.Name)));
         var failedOnce = false;
         int done = -1;
         client.DefaultRequestHeaders.Add("User-Agent", "request");
@@ -428,7 +434,7 @@ public class MainWindow : Window
         foreach (var item in _plugins)
         {
             var itemDir = Path.Combine(dir, item.Name);
-            var itemChecked = item.Ui.IsChecked ?? false;
+            var itemChecked = item.CheckUi.IsChecked ?? false;
             if (itemChecked == Directory.Exists(itemDir))
                 continue;
             done++;
@@ -443,8 +449,8 @@ public class MainWindow : Window
                 if (status != 200 && status != 304)
                 {
                     failedOnce = true;
-                    item.Ui.IsChecked = false;
-                    item.Ui.IsEnabled = false;
+                    item.CheckUi.IsChecked = false;
+                    item.CheckUi.IsEnabled = false;
                     continue;
                 }
                 
@@ -493,14 +499,11 @@ public class MainWindow : Window
     {
         if(_currentProjectPath is null || !item.Installed)
             return false;
-        string path = item.Path;
+        string path = item.VersionPath;
         string local = null, remote = null;
-
+        item.IsGitManaged = null;
         try
         {
-            if(path.Contains("$(ProjectPath)/Plugins/"))
-                path.Replace("$(ProjectPath)", Path.GetDirectoryName(_currentProjectPath));
-            path = Path.Combine(path, ".plugin-version");
             if(File.Exists(path))
             {
                 //Direct version
@@ -516,6 +519,7 @@ public class MainWindow : Window
                     local = await File.ReadAllTextAsync(path);
                     remote = (string)root["sha"];
                 }
+                item.IsGitManaged = true;
             }
             else
             {
@@ -525,6 +529,7 @@ public class MainWindow : Window
                 await process.WaitForExitAsync();
                 if(process.ExitCode == 0)
                 {
+                    item.IsGitManaged = false;
                     local = output;
                     process = StartGitProcess("rev-parse origin/" + item.Branch ?? "master");
                     await process.WaitForExitAsync();
@@ -541,9 +546,11 @@ public class MainWindow : Window
         return local != remote;
     }
 
-    private void SaveVersion(PluginEntry item)
+    private async Task SaveVersion(PluginEntry item)
     {
-        
+        if(!item.Installed || (item.IsGitManaged ?? true))
+            return;
+        await File.WriteAllTextAsync(item.VersionPath, item.CurrentVersion);
     }
 
     private Process StartGitProcess(string args, string path = "") => Process.Start(new ProcessStartInfo()
