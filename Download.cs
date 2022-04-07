@@ -6,6 +6,6 @@ public abstract class Download
 
 	public IReadOnlyList<PluginEntry> FailedPlugins => _failedPlugins;
 
-	public abstract Task<bool> DownloadAll(ILookup<bool, PluginEntry> plugins, string path, CancellationToken token);
-	public abstract Task<bool> DownloadPlugin(PluginEntry plugin, CancellationToken token);
+	public abstract Task<bool> ProcessAll(ILookup<bool, PluginEntry> plugins, string path, CancellationToken token);
+	public abstract Task<bool> ProcessPlugin(PluginEntry plugin, string path, CancellationToken token);
 }

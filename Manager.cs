@@ -89,7 +89,7 @@ public class Manager
             Download downloader = gitChecked ? new GitDownload() : new DirectDownload();
             var dirInfo = Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
             var lookup = Plugins.Where(x=>x.CheckUi.IsChecked != x.Installed).ToLookup(x=>x.CheckUi.IsChecked ?? false);
-            await downloader.DownloadAll(lookup, dirInfo.FullName, _cancelToken.Token);
+            await downloader.ProcessAll(lookup, dirInfo.FullName, _cancelToken.Token);
 
             // Update project
             var gameTarget = await UpdateFlaxProject();
