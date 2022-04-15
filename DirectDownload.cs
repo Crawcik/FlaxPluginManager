@@ -7,19 +7,23 @@ public class DirectDownload : Download
 	public override async Task<bool> ProcessAll(ILookup<bool, PluginEntry> plugins, string path, CancellationToken token)
 	{
 		var allSuccess = true;
-		foreach (var item in plugins[true])
-		{
-			if(token.IsCancellationRequested)
-				break;
-			if(!await AddPlugin(item, Path.Combine(path, item.Name), token))
-				allSuccess = false;
-		}
-
 		foreach (var item in plugins[false])
 		{
 			if(token.IsCancellationRequested)
 				break;
 			RemovePlugin(Path.Combine(path, item.Name));
+			item.Installed = false;
+		}
+		foreach (var item in plugins[true])
+		{
+			if(token.IsCancellationRequested)
+				break;
+			if(!await AddPlugin(item, Path.Combine(path, item.Name), token))
+			{
+				allSuccess = false;
+				continue;
+			}
+			item.Installed = true;
 		}
 		return allSuccess;
 	}
@@ -31,7 +35,7 @@ public class DirectDownload : Download
 		if(plugin.Installed && isChecked)
 			return false;
 		if(isChecked)
-			return await AddPlugin(plugin, plugPath, token);
+			return plugin.Installed = await AddPlugin(plugin, plugPath, token);
 		RemovePlugin(plugPath);
 		return true;
 	}
@@ -40,10 +44,9 @@ public class DirectDownload : Download
 	{
 		using var client = new HttpClient();
 		client.DefaultRequestHeaders.Add("User-Agent", "request");
-		plugin.Installed = false;
-
 		var repoLocation = plugin.Url.Replace(Manager.GithubUrl, null);
 		var apiList = string.Format(Manager.TreeUrl, repoLocation, plugin.Branch ?? "master") + "?recursive=true";
+
 		try
 		{
 			var response = await client.GetAsync(apiList, token);
@@ -69,7 +72,6 @@ public class DirectDownload : Download
 			await File.WriteAllTextAsync(Path.Combine(path, ".plugin-version"), root["sha"].ToString());
 		}
 		catch { return false; }
-		plugin.Installed = true;
 		return true;
 	}
 
