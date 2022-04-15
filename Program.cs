@@ -4,16 +4,16 @@ namespace FlaxPlugMan;
 
 public class Program
 {
-    public static string[] Args { get; private set;}
+	public static string[] Args { get; private set;}
 
-    private static void Main(string[] args) 
-    {
-        Args = args;
+	private static void Main(string[] args) 
+	{
+		Args = args;
 #if DEBUG
-        Console.WriteLine("Program is running in DEBUG mode. That means't project will not be updated!");
+		Console.WriteLine("Program is running in DEBUG mode. That means't project will not be updated!");
 #endif 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-    }
-    
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect();
+		BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+	}
+	
+	public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect();
 }
