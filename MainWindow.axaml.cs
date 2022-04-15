@@ -24,13 +24,18 @@ public class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeAsync().GetAwaiter();
+    }
+
+    private async Task InitializeAsync() 
+    {
 #if DEBUG
-        MessageBox.Show(null, "Warning", "Program is in DEBUG mode. Project files will not be updated!");
+        await MessageBox.Show(null, "Warning", "Program is in DEBUG mode. Project files will not be updated!");
 #endif
-        GitCheckSupport().GetAwaiter();
-        _manager.GetPluginList().GetAwaiter().GetResult();
-        _manager.OnDownloadStarted += () =>_applyButton.DataContext = "Cancel";
-        _manager.OnDownloadStarted += () => _applyButton.DataContext = "Apply";
+        await GitCheckSupport();
+        await _manager.GetPluginList();
+        _manager.OnDownloadStarted += () => OnDownload(true);
+        _manager.OnDownloadFinished += () => OnDownload(false);
         _pluginList.DataContext = _pluginListView = new PluginListViewModel(_manager.Plugins);
         if(Program.Args is null || Program.Args.Length == 0)
             return;
@@ -101,6 +106,14 @@ public class MainWindow : Window
             _cancelToken.Cancel();
         else
             _manager.DownloadAll(_gitSupportBox.IsChecked ?? false).GetAwaiter();
+    }
+
+    private void OnDownload(bool start)
+    {
+        _applyButton.DataContext = start ? "Cancel" : "Apply";
+        _selectButton.IsEnabled = !start;
+        _gitSupportBox.IsEnabled = !start;
+        _pluginList.IsEnabled = !start;
     }
 
 }

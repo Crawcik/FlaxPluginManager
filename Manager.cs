@@ -64,6 +64,7 @@ public class Manager
                 plugin.Installed = true;
                 plugin.SetPath(path, name);
                 plugin.UpdateUi.IsVisible = await IsUpdateNeeded(plugin);
+                ProjectPath = path;
             }
         }
         catch
@@ -73,6 +74,7 @@ public class Manager
 #else
             await MessageBox.Show(this, "Error", "Project file is invalid!");
 #endif
+            ProjectPath = null;
             return false;
         }
         return true;
@@ -115,12 +117,12 @@ public class Manager
         var root = JObject.Parse(await File.ReadAllTextAsync(ProjectPath));
         var array = (JArray)root["References"];
         array = new JArray(array.Where(x => !Plugins.Any(y => ((string)x["Name"]).Contains(y.ProjectFile))));
-        foreach (var item in Plugins)
+        foreach (var item in Plugins.Where(x => x.Installed))
         {
-            if(_failedPlugins.Contains(item))
-                continue;
+            if(item.FlaxprojPath is null)
+                item.SetPath(ProjectPath, "$(ProjectPath)/Plugins/" + item.Name + '/' + item.ProjectFile);
             var token = new JObject();
-            token.Add("Name", "$(ProjectPath)/Plugins/" + item.Name + '/' + item.ProjectFile);
+            token.Add("Name", item.FlaxprojPath);
             array.Add(token);
         }
         root["References"] = array;

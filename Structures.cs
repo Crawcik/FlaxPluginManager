@@ -7,17 +7,36 @@ namespace FlaxPlugMan;
 
 public record PluginEntry(string Name, string Description, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
 {
-    public CheckBox CheckUi { get; set; }    
+    private bool _installed = false;
+
+	public CheckBox CheckUi { get; set; }    
     public Button UpdateUi { get; set; }
-    public bool Installed { get; set; }
+    public bool Installed
+    {
+        get => _installed;
+        set 
+        {
+            _installed = value;
+            if(value == true)
+                return;
+            IsGitManaged = null;
+            CurrentVersion = null;
+            VersionPath = null;
+            FlaxprojPath = null;
+        }
+    }
     public bool? IsGitManaged { get; set; }
     public string CurrentVersion { get; set; }
 	public string VersionPath { get; private set; }
+    public string FlaxprojPath { get; private set; }
 
     public void SetPath(string projectPath, string pluginPath)
     {
-        if(pluginPath.Contains("$(ProjectPath)/Plugins/"))
+        FlaxprojPath = pluginPath;
+        if(pluginPath.Contains("$(ProjectPath)"))
+        {
             pluginPath.Replace("$(ProjectPath)", Path.GetDirectoryName(projectPath));
+        }
         VersionPath = Path.Combine(pluginPath, ".plugin-version");
     }
 }
