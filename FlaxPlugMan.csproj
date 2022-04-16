@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <OutputType>WinExe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
 		<PublishSingleFile>true</PublishSingleFile>
-    	<SelfContained>true</SelfContained>
+		<SelfContained>true</SelfContained>
 		<PublishReadyToRun>true</PublishReadyToRun>
-    </PropertyGroup>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
 		<OutputType>Exe</OutputType>
 		<SelfContained>false</SelfContained>

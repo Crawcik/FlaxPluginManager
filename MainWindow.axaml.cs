@@ -1,9 +1,6 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using System.Diagnostics;
 
 namespace FlaxPlugMan;
 
@@ -108,7 +105,7 @@ public class MainWindow : Window
 
 	private void OnDownload(bool start)
 	{
-		_applyButton.DataContext = start ? "Cancel" : "Apply";
+		_applyButton.Content = start ? "Cancel" : "Apply";
 		_selectButton.IsEnabled = !start;
 		_gitSupportBox.IsEnabled = !start;
 		_pluginList.IsEnabled = !start;
