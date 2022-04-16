@@ -2,7 +2,6 @@ namespace FlaxPlugMan;
 
 public class GitDownload : Download
 {
-
 	public override async Task<bool> ProcessAll(ILookup<bool, PluginEntry> plugins, string path, CancellationToken token)
 	{
 		// Repo presence check
@@ -30,6 +29,7 @@ public class GitDownload : Download
 				break;
 			if(!await AddPlugin(item, path, submodule, token))
 			{
+				item.CheckUi.IsEnabled = false;
 				allSuccess = false;
 				continue;
 			}
@@ -60,6 +60,23 @@ public class GitDownload : Download
 			return plugin.Installed = await AddPlugin(plugin, plugPath, submodule, token);
 		await RemovePlugin(plugin, path, gitmoduleFile, token);
 		return true;
+	}
+
+	public override async Task<bool> CheckForUpdate(PluginEntry plugin)
+	{
+		var process = Manager.StartGitProcess("rev-parse " + plugin.Branch ?? "master");
+		var output = await process.StandardOutput.ReadToEndAsync();
+		await process.WaitForExitAsync();
+		if(process.ExitCode == 0)
+		{
+			plugin.CurrentVersion = output;
+			process = Manager.StartGitProcess("rev-parse origin/" + plugin.Branch ?? "master");
+			await process.WaitForExitAsync();
+			if(process.ExitCode != 0)
+				return false;
+			return plugin.CurrentVersion != await process.StandardOutput.ReadToEndAsync(); // local != remote
+		}
+		return false;
 	}
 
 	private async Task<bool> AddPlugin(PluginEntry plugin, string path, bool submodule, CancellationToken token)

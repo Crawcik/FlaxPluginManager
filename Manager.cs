@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -85,15 +86,18 @@ public class Manager
 	public async Task DownloadAll(bool gitChecked)
 	{
 		OnDownloadStarted?.Invoke();
-		var fileInfo = new FileInfo(ProjectPath);
 		_cancelToken = new CancellationTokenSource();
+		var fileInfo = new FileInfo(ProjectPath);
+		var allSuccess = true;
 		try
 		{
 			// Download files
 			Download downloader = gitChecked ? new GitDownload() : new DirectDownload();
 			var dirInfo = Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
 			var lookup = Plugins.Where(x=>x.CheckUi.IsChecked != x.Installed).ToLookup(x=>x.CheckUi.IsChecked ?? false);
-			await downloader.ProcessAll(lookup, dirInfo.FullName, _cancelToken.Token);
+			foreach (var item in lookup[true])
+				item.IsGitManaged = gitChecked;
+			allSuccess = await downloader.ProcessAll(lookup, dirInfo.FullName, _cancelToken.Token);
 
 			// Update project
 			var gameTarget = await UpdateFlaxProject();
@@ -106,10 +110,11 @@ public class Manager
 #if DEBUG
 			Console.WriteLine(exception.ToString());
 #else
-			await MessageBox.Show(this, "Error", "Updating project files failed! Check if they're valid");
+			await MessageBox.Show(null, "Error", "Updating project files failed! Check if they're valid");
 #endif
 		}
-		
+		if(!allSuccess)
+			await MessageBox.Show(null, "Error", "Some plugins failed to install");
 		_cancelToken = null;
 		OnDownloadFinished?.Invoke();
 	}
@@ -227,7 +232,6 @@ public class Manager
 			lines.Add(line);
 			lineNum++;
 		}
-		lines.ForEach(Console.WriteLine);
 		// Write to file
 #if DEBUG
 		lines.ForEach(Console.WriteLine);
@@ -243,51 +247,17 @@ public class Manager
 	{
 		if(ProjectPath is null || !item.Installed)
 			return false;
-		string path = item.VersionPath;
-		string local = null, remote = null;
-		item.IsGitManaged = null;
+		item.IsGitManaged = File.Exists(item.VersionPath);
 		try
 		{
-			if(File.Exists(path))
-			{
-				//Direct version
-				using var client = new HttpClient();
-				client.DefaultRequestHeaders.Add("User-Agent", "request");
-				string repoLocation = item.Url.Replace(GithubUrl, null);
-				// Download plugin
-				HttpResponseMessage response = await client.GetAsync(string.Format(TreeUrl, repoLocation, item.Branch ?? "master") + "?recursive=true");
-				var root = JObject.Parse(await response.Content.ReadAsStringAsync());
-				int status = (int)response.StatusCode;
-				if (status == 200 || status == 304)
-				{
-					local = await File.ReadAllTextAsync(path);
-					remote = (string)root["sha"];
-				}
-				item.IsGitManaged = true;
-			}
-			else
-			{
-				//Git version
-				var process = StartGitProcess("rev-parse " + item.Branch ?? "master");
-				string output = await process.StandardOutput.ReadToEndAsync();
-				await process.WaitForExitAsync();
-				if(process.ExitCode == 0)
-				{
-					item.IsGitManaged = false;
-					local = output;
-					process = StartGitProcess("rev-parse origin/" + item.Branch ?? "master");
-					await process.WaitForExitAsync();
-					if(process.ExitCode == 0)
-						remote = output;
-				}
-			}
+			Download download = item.IsGitManaged.Value ? new DirectDownload() : new GitDownload();
+			return await download.CheckForUpdate(item);
 		}
 		catch(Exception exp)
 		{
 			Console.WriteLine(exp);
 			return false;
 		}
-		return local != remote;
 	}
 
 	private async Task SaveVersion(PluginEntry item)
