@@ -12,7 +12,7 @@ public class DirectDownload : Download
 
 	private HttpClient _web = new HttpClient() {
 		DefaultRequestHeaders = {
-			{"User-Agent", "request"}
+			{"User-Agent", "FlaxPluginManager-App"}
 		}	
 	};
 
@@ -39,18 +39,6 @@ public class DirectDownload : Download
 			item.Installed = true;
 		}
 		return allSuccess;
-	}
-
-	public override async Task<bool> ProcessPlugin(PluginEntry plugin, string path, CancellationToken token)
-	{
-		var plugPath = Path.Combine(path, plugin.Name);
-		var isChecked = plugin.CheckUi.IsChecked ?? false;
-		if(plugin.Installed && isChecked)
-			return false;
-		if(isChecked)
-			return plugin.Installed = await AddPlugin(plugin, plugPath, token);
-		RemovePlugin(plugPath);
-		return true;
 	}
 
 	public override async Task<bool> CheckForUpdate(PluginEntry plugin)

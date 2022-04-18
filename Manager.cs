@@ -19,11 +19,12 @@ public class Manager
 
 	public event Action OnDownloadStarted, OnDownloadFinished;
 
-	public static Process StartGitProcess(string args, string path = "") => Process.Start(new ProcessStartInfo()
+	public static Process StartGitProcess(string args, string path = "", bool stdout = false) => Process.Start(new ProcessStartInfo()
 	{
 		FileName = "git",
 		UseShellExecute = false,
 		WorkingDirectory = path,
+		RedirectStandardOutput = stdout,
 		Arguments = args
 	});
 

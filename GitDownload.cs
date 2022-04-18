@@ -38,44 +38,20 @@ public class GitDownload : Download
 		return allSuccess;
 	}
 
-	public override async Task<bool> ProcessPlugin(PluginEntry plugin, string path, CancellationToken token)
-	{
-		var plugPath = Path.Combine(path, plugin.Name);
-		var isChecked = plugin.CheckUi.IsChecked ?? false;
-		if(plugin.Installed && isChecked)
-			return false;
-
-		// Repo presence check
-		var process = Manager.StartGitProcess("status", path);
-		await process.WaitForExitAsync(token);
-		token.ThrowIfCancellationRequested();
-		var submodule = process.ExitCode == 0;
-		var gitmoduleFile = Path.Combine(path, ".gitmodules");
-		if(!File.Exists(gitmoduleFile))
-			gitmoduleFile = Path.Combine(path, "..", ".gitmodules");
-		if(!File.Exists(gitmoduleFile) || !submodule)
-			gitmoduleFile = null;
-
-		if(isChecked)
-			return plugin.Installed = await AddPlugin(plugin, plugPath, submodule, token);
-		await RemovePlugin(plugin, path, gitmoduleFile, token);
-		return true;
-	}
-
 	public override async Task<bool> CheckForUpdate(PluginEntry plugin)
 	{
 		var dir = Path.GetDirectoryName(plugin.VersionPath);
-		var process = Manager.StartGitProcess("rev-parse " + plugin.Branch ?? "master", dir);
-		var output = await process.StandardOutput.ReadToEndAsync();
+		var process = Manager.StartGitProcess("rev-parse " + (plugin.Branch ?? "master"), dir, true);
 		await process.WaitForExitAsync();
 		if(process.ExitCode == 0)
 		{
+			var output = await process.StandardOutput.ReadToEndAsync();
 			plugin.CurrentVersion = output.TrimEnd('\r','\n');
-			process = Manager.StartGitProcess("rev-parse origin/" + plugin.Branch ?? "master", dir);
+			process = Manager.StartGitProcess("rev-parse origin/" + (plugin.Branch ?? "master"), dir, true);
 			await process.WaitForExitAsync();
 			if(process.ExitCode != 0)
 				return false;
-			return plugin.CurrentVersion != await process.StandardOutput.ReadToEndAsync(); // local != remote
+			return plugin.CurrentVersion != (await process.StandardOutput.ReadToEndAsync()).TrimEnd('\r','\n'); // local != remote
 		}
 		return false;
 	}
@@ -83,7 +59,7 @@ public class GitDownload : Download
 	public override async Task<bool> Update(PluginEntry plugin, CancellationToken token)
 	{
 		var dir = Path.GetDirectoryName(plugin.VersionPath);
-		var process = Manager.StartGitProcess("pull origin " + plugin.Branch ?? "master");
+		var process = Manager.StartGitProcess("pull origin " + (plugin.Branch ?? "master"), dir);
 		await process.WaitForExitAsync(token);
 		return process.ExitCode == 0;
 	}
