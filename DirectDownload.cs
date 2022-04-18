@@ -4,6 +4,12 @@ namespace FlaxPlugMan;
 
 public class DirectDownload : Download
 {
+	private const string
+		TreeUrl = "https://api.github.com/repos/{0}/git/trees/{1}",
+		CompareUrl = "https://api.github.com/repos/{0}/compare/{1}...{2}",
+		GithubUrl = "https://github.com/",
+		RawUrl = "https://raw.githubusercontent.com/{0}/{1}/";
+
 	private HttpClient _web = new HttpClient() {
 		DefaultRequestHeaders = {
 			{"User-Agent", "request"}
@@ -35,19 +41,6 @@ public class DirectDownload : Download
 		return allSuccess;
 	}
 
-	public override async Task<bool> CheckForUpdate(PluginEntry plugin)
-	{
-		var repoLocation = plugin.Url.Replace(Manager.GithubUrl, null);
-		var result =  await GetWebString(string.Format(Manager.TreeUrl, repoLocation, plugin.Branch ?? "master"));
-		if(result is null)
-			return false;
-
-		var root = JObject.Parse(result);
-		plugin.CurrentVersion = await File.ReadAllTextAsync(plugin.VersionPath);
-		var remote = (string)root["sha"];
-		return plugin.CurrentVersion != remote; // local != remote
-	}
-
 	public override async Task<bool> ProcessPlugin(PluginEntry plugin, string path, CancellationToken token)
 	{
 		var plugPath = Path.Combine(path, plugin.Name);
@@ -60,26 +53,74 @@ public class DirectDownload : Download
 		return true;
 	}
 
-	private async Task<bool> AddPlugin(PluginEntry plugin, string path,  CancellationToken token)
+	public override async Task<bool> CheckForUpdate(PluginEntry plugin)
 	{
-		var repoLocation = plugin.Url.Replace(Manager.GithubUrl, null);
-		var apiList = string.Format(Manager.TreeUrl, repoLocation, plugin.Branch ?? "master") + "?recursive=true";
+		var repoLocation = plugin.Url.Replace(GithubUrl, null);
+		var result =  await GetWebString(string.Format(TreeUrl, repoLocation, plugin.Branch ?? "master"));
+		if(result is null)
+			return false;
+
+		var root = JObject.Parse(result);
+		plugin.CurrentVersion = (await File.ReadAllTextAsync(plugin.VersionPath)).TrimEnd('\r','\n');
+		var remote = (string)root["sha"];
+		return plugin.CurrentVersion != remote; // local != remote
+	}
+
+	public override async Task<bool> Update(PluginEntry plugin, CancellationToken token)
+	{
+		var dir = Path.GetDirectoryName(plugin.VersionPath);
+		var repoLocation = plugin.Url.Replace(GithubUrl, null);
+		var result =  await GetWebString(string.Format(CompareUrl, repoLocation, plugin.CurrentVersion, plugin.Branch ?? "master"), token);
+		if(result is null)
+			return false;
+
+		var root = JObject.Parse(result);
+		foreach (var item in root["files"])
+		{
+			try 
+			{
+				var filename = Path.Combine(dir, (string)item["filename"]);
+				switch ((string)item["status"])
+				{
+					case "added" or "modified":
+						if(!await WriteFromStream((string)item["raw_url"], filename, token))
+							return false;
+						break;
+					case "removed": 
+						File.Delete(filename); //Windows is retarded, might crash
+						break;
+					case "renamed":
+						File.Move((string)item["previous_filename"], filename, true);
+						if((int)item["changes"] == 0)
+							break;
+						if(!await WriteFromStream((string)item["raw_url"], filename, token))
+							return false;
+						break;
+				}
+			} catch { return false; }
+		}
+		var sha = (string)root["commits"].Last["sha"];
+		await File.WriteAllTextAsync(plugin.VersionPath, sha, token);
+		return true;
+	}
+
+	private async Task<bool> AddPlugin(PluginEntry plugin, string path, CancellationToken token)
+	{
+		var repoLocation = plugin.Url.Replace(GithubUrl, null);
+		var apiList = string.Format(TreeUrl, repoLocation, plugin.Branch ?? "master") + "?recursive=true";
 
 		try
 		{
 			var root = JObject.Parse(await GetWebString(apiList, token));
-			var url = string.Format(Manager.RawUrl, repoLocation, plugin.Branch ?? "master");
+			var url = string.Format(RawUrl, repoLocation, plugin.Branch ?? "master");
 			var tree = root["tree"].Where(x => (string)x["type"] == "blob");
 			foreach (var obj in tree)
 			{
 				var repoPath = (string)obj["path"];
 				var filePath = Path.Combine(path, repoPath);
 				Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-				var webStream = await GetWebStream(url + repoPath, token);
-				var fileStream = File.OpenWrite(filePath);
-				await webStream.CopyToAsync(fileStream);
-				webStream.Close();
-				fileStream.Close();
+				if(!await WriteFromStream(url + repoPath, filePath, token))
+					return false;
 			}
 			await File.WriteAllTextAsync(Path.Combine(path, ".plugin-version"), (string)root["sha"], token);
 		}
@@ -93,22 +134,26 @@ public class DirectDownload : Download
 		{
 			Directory.Delete(path, true);
 		} 
-		catch
-		{
-			// Windows is retarded 
-		}
+		catch { /* Windows is retarded */}
 	}
 
-	private async Task<Stream> GetWebStream(string uri, CancellationToken cancellationToken = default)
+	private async Task<bool> WriteFromStream(string url, string filename, CancellationToken cancellationToken = default)
 	{
-		var request = await _web.GetAsync(uri, cancellationToken);
+		var request = await _web.GetAsync(url, cancellationToken);
 		var status = (int)request.StatusCode;
-		return status == 200 || status == 304 ? await request.Content.ReadAsStreamAsync() : null;
+		if (status != 200 && status != 304)
+			return false;
+		var webStream = await request.Content.ReadAsStreamAsync(cancellationToken);
+		var fileStream = File.OpenWrite(filename);
+		await webStream.CopyToAsync(fileStream, cancellationToken);
+		webStream.Close();
+		fileStream.Close();
+		return true;
 	}
 
-	private async Task<string> GetWebString(string uri, CancellationToken cancellationToken = default)
+	private async Task<string> GetWebString(string url, CancellationToken cancellationToken = default)
 	{
-		var request = await _web.GetAsync(uri, cancellationToken);
+		var request = await _web.GetAsync(url, cancellationToken);
 		var status = (int)request.StatusCode;
 		return status == 200 || status == 304 ? await request.Content.ReadAsStringAsync() : null;
 	}

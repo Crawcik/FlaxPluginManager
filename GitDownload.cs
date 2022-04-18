@@ -64,13 +64,14 @@ public class GitDownload : Download
 
 	public override async Task<bool> CheckForUpdate(PluginEntry plugin)
 	{
-		var process = Manager.StartGitProcess("rev-parse " + plugin.Branch ?? "master");
+		var dir = Path.GetDirectoryName(plugin.VersionPath);
+		var process = Manager.StartGitProcess("rev-parse " + plugin.Branch ?? "master", dir);
 		var output = await process.StandardOutput.ReadToEndAsync();
 		await process.WaitForExitAsync();
 		if(process.ExitCode == 0)
 		{
-			plugin.CurrentVersion = output;
-			process = Manager.StartGitProcess("rev-parse origin/" + plugin.Branch ?? "master");
+			plugin.CurrentVersion = output.TrimEnd('\r','\n');
+			process = Manager.StartGitProcess("rev-parse origin/" + plugin.Branch ?? "master", dir);
 			await process.WaitForExitAsync();
 			if(process.ExitCode != 0)
 				return false;
@@ -79,9 +80,19 @@ public class GitDownload : Download
 		return false;
 	}
 
+	public override async Task<bool> Update(PluginEntry plugin, CancellationToken token)
+	{
+		var dir = Path.GetDirectoryName(plugin.VersionPath);
+		var process = Manager.StartGitProcess("pull origin " + plugin.Branch ?? "master");
+		await process.WaitForExitAsync(token);
+		return process.ExitCode == 0;
+	}
+
 	private async Task<bool> AddPlugin(PluginEntry plugin, string path, bool submodule, CancellationToken token)
 	{
-		var arg = (submodule ? "submodule add -f" : "clone") + $" {plugin.Url} \"{plugin.Name}\"";
+		var arg = (submodule ? "submodule add -f" : "clone") 
+				+ (plugin.Branch is null ? "" : " --single-branch --branch " + plugin.Branch) 
+				+ $" {plugin.Url} \"{plugin.Name}\"";
 		try
 		{
 			var process = Manager.StartGitProcess(arg, path);
@@ -116,9 +127,6 @@ public class GitDownload : Download
 		{
 			Directory.Delete(Path.Combine(path, plugin.Name), true);
 		}
-		catch
-		{
-			// Windows is retarded 
-		}
+		catch { /* Windows is retarded */}
 	}
 }

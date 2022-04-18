@@ -6,7 +6,7 @@ namespace FlaxPlugMan;
 
 public class MainWindow : Window
 {
-	private const string Version = " 1.3";
+	private const string Version = " 1.4";
 
 	private Manager _manager = new ();
 	private ProgressBar _progressBar;
@@ -24,27 +24,18 @@ public class MainWindow : Window
 
 	private async Task InitializeAsync() 
 	{
-#if DEBUG
-		await MessageBox.Show(null, "Warning", "Program is in DEBUG mode. Project files will not be updated!");
-#endif
 		await GitCheckSupport();
 		await _manager.GetPluginList();
 		_manager.OnDownloadStarted += () => OnDownload(true);
 		_manager.OnDownloadFinished += () => OnDownload(false);
 		_pluginList.DataContext = _pluginListView = new PluginListViewModel(_manager.Plugins);
+		foreach (var item in _manager.Plugins)
+			item.UpdateUi.Click += (sender, args) => _manager.UpdatePlugin(item).GetAwaiter();
 		if(Program.Args is null || Program.Args.Length == 0)
 			return;
 		string path = Program.Args[0];
 		if(File.Exists(path) && path.EndsWith(".flaxproj"))
 			_manager.SetProject(path).GetAwaiter();
-	}
-
-	public void UpdateManually(PluginEntry plugin)
-	{
-		if (plugin.Installed)
-		{
-			
-		}
 	}
 
 	private void InitializeComponent()

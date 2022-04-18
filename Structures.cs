@@ -34,10 +34,16 @@ public record PluginEntry(string Name, string Description, string Url, string Br
 	{
 		FlaxprojPath = pluginPath;
 		if(pluginPath.Contains("$(ProjectPath)"))
-		{
-			pluginPath.Replace("$(ProjectPath)", Path.GetDirectoryName(projectPath));
-		}
+			pluginPath = pluginPath.Replace("$(ProjectPath)", Path.GetDirectoryName(projectPath));
 		VersionPath = Path.Combine(pluginPath, ".plugin-version");
+	}
+
+	public void UpdateStyle(bool start)
+	{
+		UpdateUi.Content = start ? "Updating..." : "Update";
+		UpdateUi.Background = start ? Brushes.Gray : null;
+		UpdateUi.Foreground = start ? Brushes.White : null;
+		UpdateUi.IsEnabled = !start;
 	}
 }
 
@@ -52,7 +58,6 @@ public class PluginListViewModel
 			var grid = new Grid();
 			item.CheckUi = new() { Content = item.Name };
 			item.UpdateUi = new () { Content = "Update", IsVisible = false };
-			item.UpdateUi.Click += (sender, e) => UpdatePlugin(item);
 			grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Parse("*") });
 			grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto});
 			grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -63,13 +68,5 @@ public class PluginListViewModel
 			ToolTip.SetTip(item.CheckUi, item.Description);
 			Items.Add(grid);
 		}
-	}
-
-	public void UpdatePlugin(PluginEntry item)
-	{
-		item.UpdateUi.Content = "Updating...";
-		item.UpdateUi.Background = Brushes.Gray;
-		item.UpdateUi.Foreground = Brushes.White;
-		item.UpdateUi.IsEnabled = false;
 	}
 }

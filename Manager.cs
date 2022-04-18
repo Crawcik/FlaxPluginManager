@@ -7,11 +7,8 @@ namespace FlaxPlugMan;
 
 public class Manager
 {
-	public const string
+	private const string
 		ListUrl = "https://raw.githubusercontent.com/Crawcik/FlaxPluginManager/master/plugin_list.json",
-		TreeUrl = "https://api.github.com/repos/{0}/git/trees/{1}",
-		GithubUrl = "https://github.com/",
-		RawUrl = "https://raw.githubusercontent.com/{0}/{1}/",
 		ModuleDependency = "options.PrivateDependencies.Add(\"{0}\");";
 
 	private CancellationTokenSource _cancelToken;
@@ -50,6 +47,7 @@ public class Manager
 
 	public async Task<bool> SetProject(string path)
 	{
+		ProjectPath = path;
 		foreach(var item in Plugins)
 			item.Installed = false;
 		try
@@ -63,18 +61,13 @@ public class Manager
 					continue;
 				plugin.CheckUi.IsChecked = true;
 				plugin.Installed = true;
-				plugin.SetPath(path, name);
+				plugin.SetPath(path, Path.GetDirectoryName(name));
 				plugin.UpdateUi.IsVisible = await IsUpdateNeeded(plugin);
-				ProjectPath = path;
 			}
 		}
 		catch
 		{
-#if DEBUG
-			Console.WriteLine("Project is invalid");
-#else
-			await MessageBox.Show(this, "Error", "Project file is invalid!");
-#endif
+			await MessageBox.Show(null, "Error", "Project file is invalid!");
 			ProjectPath = null;
 			return false;
 		}
@@ -94,7 +87,7 @@ public class Manager
 			// Download files
 			Download downloader = gitChecked ? new GitDownload() : new DirectDownload();
 			var dirInfo = Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
-			var lookup = Plugins.Where(x=>x.CheckUi.IsChecked != x.Installed).ToLookup(x=>x.CheckUi.IsChecked ?? false);
+			var lookup = Plugins.Where(x => x.CheckUi.IsChecked != x.Installed).ToLookup(x => x.CheckUi.IsChecked ?? false);
 			foreach (var item in lookup[true])
 				item.IsGitManaged = gitChecked;
 			allSuccess = await downloader.ProcessAll(lookup, dirInfo.FullName, _cancelToken.Token);
@@ -105,18 +98,38 @@ public class Manager
 			await MessageBox.Show(null, "Info", "Success!");
 			
 		}
-		catch (Exception exception)
+		catch
 		{
-#if DEBUG
-			Console.WriteLine(exception.ToString());
-#else
 			await MessageBox.Show(null, "Error", "Updating project files failed! Check if they're valid");
-#endif
 		}
 		if(!allSuccess)
 			await MessageBox.Show(null, "Error", "Some plugins failed to install");
 		_cancelToken = null;
 		OnDownloadFinished?.Invoke();
+	}
+
+	public async Task UpdatePlugin(PluginEntry item)
+	{
+		if(ProjectPath is null || !item.Installed || !item.IsGitManaged.HasValue)
+			return;
+		_cancelToken = new CancellationTokenSource();
+		item.UpdateStyle(true);
+		OnDownloadStarted.Invoke();
+		try
+		{
+			Download download = item.IsGitManaged.Value ? new GitDownload() : new DirectDownload();
+			var success = await download.Update(item, _cancelToken.Token);
+			await MessageBox.Show(null, success ? "Info" : "Error", success ? "Success!" : "Updating failed!");
+			item.UpdateUi.IsVisible = !success;
+		}
+		catch(Exception exp)
+		{
+			Console.WriteLine(exp);
+		}
+		item.UpdateStyle(false);
+		OnDownloadFinished.Invoke();
+		_cancelToken = null;
+		
 	}
 
 	private async Task<string> UpdateFlaxProject()
@@ -134,11 +147,7 @@ public class Manager
 		}
 		root["References"] = array;
 		var str = root.ToString(Formatting.Indented);
-#if DEBUG
-		Console.WriteLine(str);
-#else
 		File.WriteAllText(ProjectPath, str);
-#endif
 		return (string)root["GameTarget"];
 	}
 
@@ -151,9 +160,7 @@ public class Manager
 			return;
 		using var stream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
 		using var reader = new StreamReader(stream);
-#if !DEBUG
 		using var writer = new StreamWriter(stream);
-#endif
 
 		// Read and arrange
 		var lines = new List<string>();
@@ -233,37 +240,29 @@ public class Manager
 			lineNum++;
 		}
 		// Write to file
-#if DEBUG
-		lines.ForEach(Console.WriteLine);
-#else
+
 		stream.Seek(0, SeekOrigin.Begin);
 		stream.SetLength(0);
-		lines.ForEach(await writer.WriteLineAsync);
+		foreach (var obj in lines)
+			await writer.WriteLineAsync(obj);
 		writer.Close();
-#endif
 	}
 
 	private async Task<bool> IsUpdateNeeded(PluginEntry item)
 	{
 		if(ProjectPath is null || !item.Installed)
 			return false;
-		item.IsGitManaged = File.Exists(item.VersionPath);
+		item.IsGitManaged = !File.Exists(item.VersionPath);
 		try
 		{
-			Download download = item.IsGitManaged.Value ? new DirectDownload() : new GitDownload();
+			Download download = item.IsGitManaged.Value ? new GitDownload() : new DirectDownload();
 			return await download.CheckForUpdate(item);
+			
 		}
 		catch(Exception exp)
 		{
 			Console.WriteLine(exp);
 			return false;
 		}
-	}
-
-	private async Task SaveVersion(PluginEntry item)
-	{
-		if(!item.Installed || (item.IsGitManaged ?? true))
-			return;
-		await File.WriteAllTextAsync(item.VersionPath, item.CurrentVersion);
 	}
 }
