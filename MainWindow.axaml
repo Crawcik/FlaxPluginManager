@@ -15,8 +15,7 @@
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="0.5*,0.5*">
-        <Label Name="Info"  Grid.Row="0" Grid.Column="0" FontSize="14" >Flax Plugin Manager</Label>
-        <ProgressBar Name="Progress" Grid.Row="0" Grid.Column="1" Value="70" Foreground="#283f9a"></ProgressBar>
+        <Label Name="Info"  Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="14" >Flax Plugin Manager</Label>
         <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#18191d" BorderBrush="#283f9a" BorderThickness="3" CornerRadius="5">
             <ListBox Name="PluginList" Background="Transparent" Items="{Binding Items}">
             </ListBox>

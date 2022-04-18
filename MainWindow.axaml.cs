@@ -1,15 +1,17 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Newtonsoft.Json.Linq;
 
 namespace FlaxPlugMan;
 
 public class MainWindow : Window
 {
-	private const string Version = " 1.4";
+	private const string 
+		Version = " 1.4",
+		VersionUrl = "https://api.github.com/repos/Crawcik/FlaxPluginManager/releases/latest";
 
 	private Manager _manager = new ();
-	private ProgressBar _progressBar;
 	private CheckBox _gitSupportBox;
 	private ListBox _pluginList;
 	private PluginListViewModel _pluginListView;
@@ -24,7 +26,22 @@ public class MainWindow : Window
 
 	private async Task InitializeAsync() 
 	{
-		await GitCheckSupport();
+		// Check manager update
+		var result =  await new DirectDownload().GetWebString(VersionUrl);
+		if(result is not null)
+		{
+			var versionRemote = JObject.Parse(result)["tag_name"].ToString().Remove(0, 1);
+			if(versionRemote != Version.Trim())
+				this.FindControl<Label>("Info").Content += " (new version avalible)";
+				
+		}
+		// Check git support
+		var process = Manager.StartGitProcess("--version");
+		await process.WaitForExitAsync();
+		if (process.ExitCode == 0)
+			_gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
+
+		// Initialize plugins list & manager	
 		await _manager.GetPluginList();
 		_manager.OnDownloadStarted += () => OnDownload(true);
 		_manager.OnDownloadFinished += () => OnDownload(false);
@@ -42,23 +59,12 @@ public class MainWindow : Window
 	{
 		AvaloniaXamlLoader.Load(this);
 		this.FindControl<Label>("Info").Content += Version;
-		_progressBar = this.FindControl<ProgressBar>("Progress");
 		_pluginList = this.FindControl<ListBox>("PluginList");
 		_selectButton = this.FindControl<Button>("SelectButton");
 		_applyButton = this.FindControl<Button>("ApplyButton");
 		_gitSupportBox = this.FindControl<CheckBox>("GitSupport");
-		_progressBar.Value = 0;
 		_applyButton.IsEnabled = false;
-		_progressBar.IsVisible = false;
 		_pluginList.IsEnabled = false;
-	}
-
-	private async Task GitCheckSupport()
-	{
-		var process = Manager.StartGitProcess("--version");
-		await process.WaitForExitAsync();
-		if (process.ExitCode == 0)
-			_gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
 	}
 
 	private void OnSelectClick(object sender, RoutedEventArgs e)

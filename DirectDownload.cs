@@ -125,7 +125,7 @@ public class DirectDownload : Download
 		catch { /* Windows is retarded */}
 	}
 
-	private async Task<bool> WriteFromStream(string url, string filename, CancellationToken cancellationToken = default)
+	public async Task<bool> WriteFromStream(string url, string filename, CancellationToken cancellationToken = default)
 	{
 		var request = await _web.GetAsync(url, cancellationToken);
 		var status = (int)request.StatusCode;
@@ -139,7 +139,7 @@ public class DirectDownload : Download
 		return true;
 	}
 
-	private async Task<string> GetWebString(string url, CancellationToken cancellationToken = default)
+	public async Task<string> GetWebString(string url, CancellationToken cancellationToken = default)
 	{
 		var request = await _web.GetAsync(url, cancellationToken);
 		var status = (int)request.StatusCode;
