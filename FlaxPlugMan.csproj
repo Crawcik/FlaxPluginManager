@@ -1,19 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <OutputType>WinExe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
 		<PublishSingleFile>true</PublishSingleFile>
-    	<SelfContained>true</SelfContained>
+		<SelfContained>true</SelfContained>
 		<PublishReadyToRun>true</PublishReadyToRun>
-    </PropertyGroup>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
 		<OutputType>Exe</OutputType>
 		<SelfContained>false</SelfContained>
 		<Obfuscate>false</Obfuscate>
 	</PropertyGroup>
 	<ItemGroup>
-	  <PackageReference Include="Avalonia.Desktop" Version="0.10.11" />
+	  <PackageReference Include="Avalonia.Desktop" Version="0.10.13" />
 	  <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 	</ItemGroup>
 </Project>
