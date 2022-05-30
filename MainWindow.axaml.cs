@@ -35,11 +35,16 @@ public class MainWindow : Window
 				this.FindControl<Label>("Info").Content += " (new version avalible)";
 				
 		}
-		// Check git support
-		var process = Manager.StartGitProcess("--version");
-		await process.WaitForExitAsync();
-		if (process.ExitCode == 0)
-			_gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
+
+		try
+		{
+			// Check git support
+			var process = Manager.StartGitProcess("--version");
+			await process.WaitForExitAsync();
+			if (process.ExitCode == 0)
+				_gitSupportBox.IsChecked =_gitSupportBox.IsEnabled = true;
+		}
+		catch { }
 
 		// Initialize plugins list & manager	
 		await _manager.GetPluginList();
