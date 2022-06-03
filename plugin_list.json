@@ -12,6 +12,7 @@
 		"tag": "Editor",
 		"description": "A little plugin that let multiple peoples edit the same scene simultaneously",
 		"url": "https://github.com/FlaxCommunityProjects/FlaxCollaborate",
+		"editorModuleName": "FlaxEngineCollaborateEditor",
 		"projectFile": "FlaxCollaborate.flaxproj"
 	},
 	{
@@ -61,6 +62,7 @@
 		"tag": "Editor",
 		"description": "Plugin for working with UE4 assets",
 		"url": "https://github.com/chicken-with-lips/flax-plugin-ue4-utilities",
+		"editorModuleName": "UE4ContentImporterEditor",
 		"projectFile": "UE4ContentImporter.flaxproj"
 	}
 ]
