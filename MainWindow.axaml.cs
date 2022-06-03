@@ -15,7 +15,7 @@ public class MainWindow : Window
 
 	private Manager _manager = new ();
 	private CheckBox _gitSupportBox;
-	private Border _pluginListModel;
+	private ScrollViewer _pluginListModel;
 	private Button _selectButton;
 	private Button _applyButton;
 
@@ -51,7 +51,7 @@ public class MainWindow : Window
 		await _manager.GetPluginList();
 		_manager.OnDownloadStarted += () => OnDownload(true);
 		_manager.OnDownloadFinished += () => OnDownload(false);
-		_pluginListModel.Child = GetGrid();
+		_pluginListModel.Content = GetGrid();
 		foreach (var item in _manager.Plugins)
 			item.UpdateUi.Click += (sender, args) => _manager.UpdatePlugin(item).GetAwaiter();
 		if(Program.Args is null || Program.Args.Length == 0)
@@ -69,7 +69,7 @@ public class MainWindow : Window
 	{
 		AvaloniaXamlLoader.Load(this);
 		this.FindControl<Label>("Info").Content += Version;
-		_pluginListModel = this.FindControl<Border>("PluginList");
+		_pluginListModel = this.FindControl<ScrollViewer>("PluginList");
 		_selectButton = this.FindControl<Button>("SelectButton");
 		_applyButton = this.FindControl<Button>("ApplyButton");
 		_gitSupportBox = this.FindControl<CheckBox>("GitSupport");
