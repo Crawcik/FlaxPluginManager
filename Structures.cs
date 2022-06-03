@@ -6,7 +6,7 @@ using Avalonia.Layout;
 
 namespace FlaxPlugMan;
 
-public record PluginEntry(string Name, string Description, string Tag, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
+public record PluginEntry(string Name, string Description, string Tag, string Url, string Branch, string ModuleName, string EditorModuleName, string ProjectFile, string[] Platforms)
 {
 	private bool _installed = false;
 

@@ -97,7 +97,12 @@ public class Manager
 
 			// Update project
 			var gameTarget = await UpdateFlaxProject();
-			await UpdateGameModules(gameTarget, fileInfo);
+			await UpdateGameModules(gameTarget.Item1, fileInfo);
+			if (Plugins.Any(x => !string.IsNullOrEmpty(x.EditorModuleName))
+			{
+				await UpdateGameModules(gameTarget.Item2, fileInfo, true);
+			}
+
 			await MessageBox.Show(null, "Info", "Success!");
 			
 		}
@@ -136,7 +141,7 @@ public class Manager
 		
 	}
 
-	private async Task<string> UpdateFlaxProject()
+	private async Task<(string, string)> UpdateFlaxProject()
 	{
 		var root = JObject.Parse(await File.ReadAllTextAsync(ProjectPath));
 		var array = (JArray)root["References"];
@@ -152,10 +157,10 @@ public class Manager
 		root["References"] = array;
 		var str = root.ToString(Formatting.Indented);
 		File.WriteAllText(ProjectPath, str);
-		return (string)root["GameTarget"];
+		return ((string)root["GameTarget"], (string)root["GameTargetEditor"]);
 	}
 
-	private async Task UpdateGameModules(string gameTarget, FileInfo fileInfo)
+	private async Task UpdateGameModules(string gameTarget, FileInfo fileInfo, bool isEditor = false)
 	{
 		var path = fileInfo.Directory.ToString();
 		var target = gameTarget is null ? "Game" : gameTarget.Replace("Target", null);
@@ -195,7 +200,8 @@ public class Manager
 				{
 					foreach (var item in Plugins)
 					{
-						if (string.IsNullOrEmpty(item.ModuleName) || !line.Contains('"' + item.ModuleName + '"'))
+						var moduleName = isEditor ? item.EditorModuleName : item.ModuleName;
+						if (string.IsNullOrEmpty(moduleName) || !line.Contains('"' + moduleName + '"'))
 							continue;
 						con = true;
 						break;
