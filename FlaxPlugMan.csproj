@@ -10,6 +10,7 @@
 		<OutputType>Exe</OutputType>
 		<SelfContained>false</SelfContained>
 		<Obfuscate>false</Obfuscate>
+		<DisableWinExeOutputInference>false</DisableWinExeOutputInference>
 	</PropertyGroup>
 	<ItemGroup>
 	  <PackageReference Include="Avalonia.Desktop" Version="0.10.13" />
