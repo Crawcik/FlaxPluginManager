@@ -57,12 +57,12 @@ public class Manager
 			foreach(var obj in root["References"])
 			{
 				var name = (string)obj["Name"];
-				var plugin = Plugins.FirstOrDefault(x=>name.Contains(x.ProjectFile));
+				var plugin = Plugins.FirstOrDefault(x => name.Contains(x.ProjectFile));
 				if(plugin is null)
 					continue;
 				plugin.CheckUi.IsChecked = true;
 				plugin.Installed = true;
-				plugin.SetPath(path, Path.GetDirectoryName(name));
+				plugin.SetPath(path, name);
 				var update = await IsUpdateNeeded(plugin);
 				plugin.UpdateUi.IsVisible = update;
 				plugin.TagUi.IsVisible = !update;

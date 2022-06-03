@@ -35,6 +35,7 @@ public record PluginEntry(string Name, string Description, string Tag, string Ur
 	public void SetPath(string projectPath, string pluginPath)
 	{
 		FlaxprojPath = pluginPath;
+		pluginPath = pluginPath.Replace( ProjectFile, null);
 		if(pluginPath.Contains("$(ProjectPath)"))
 			pluginPath = pluginPath.Replace("$(ProjectPath)", Path.GetDirectoryName(projectPath));
 		VersionPath = Path.Combine(pluginPath, ".plugin-version");
