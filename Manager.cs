@@ -94,7 +94,11 @@ public class Manager
 			foreach (var item in lookup[true])
 				item.IsGitManaged = gitChecked;
 			allSuccess = await downloader.ProcessAll(lookup, dirInfo.FullName, _cancelToken.Token);
-
+			foreach (var item in lookup[false])
+			{
+				item.UpdateUi.IsVisible = false;
+				item.TagUi.IsVisible = true;
+			}
 			// Update project
 			var gameTarget = await UpdateFlaxProject();
 			await UpdateGameModules(gameTarget, fileInfo);
