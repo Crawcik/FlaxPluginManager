@@ -63,7 +63,9 @@ public class Manager
 				plugin.CheckUi.IsChecked = true;
 				plugin.Installed = true;
 				plugin.SetPath(path, Path.GetDirectoryName(name));
-				plugin.UpdateUi.IsVisible = await IsUpdateNeeded(plugin);
+				var update = await IsUpdateNeeded(plugin);
+				plugin.UpdateUi.IsVisible = update;
+				plugin.TagUi.IsVisible = !update;
 			}
 		}
 		catch
@@ -122,6 +124,7 @@ public class Manager
 			var success = await download.Update(item, _cancelToken.Token);
 			await MessageBox.Show(null, success ? "Info" : "Error", success ? "Success!" : "Updating failed!");
 			item.UpdateUi.IsVisible = !success;
+			item.TagUi.IsVisible = success;
 		}
 		catch(Exception exp)
 		{

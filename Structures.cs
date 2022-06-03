@@ -2,15 +2,17 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Layout;
 
 namespace FlaxPlugMan;
 
-public record PluginEntry(string Name, string Description, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
+public record PluginEntry(string Name, string Description, string Tag, string Url, string Branch, string ModuleName, string ProjectFile, string[] Platforms)
 {
 	private bool _installed = false;
 
 	public CheckBox CheckUi { get; set; }    
 	public Button UpdateUi { get; set; }
+	public Label TagUi { get; set; }
 	public bool Installed
 	{
 		get => _installed;
@@ -44,29 +46,5 @@ public record PluginEntry(string Name, string Description, string Url, string Br
 		UpdateUi.Background = start ? Brushes.Gray : null;
 		UpdateUi.Foreground = start ? Brushes.White : null;
 		UpdateUi.IsEnabled = !start;
-	}
-}
-
-public class PluginListViewModel
-{
-	public ObservableCollection<Grid> Items { get; }
-	public PluginListViewModel(IEnumerable<PluginEntry> items)
-	{
-		Items = new();
-		foreach (PluginEntry item in items)
-		{
-			var grid = new Grid();
-			item.CheckUi = new() { Content = item.Name };
-			item.UpdateUi = new () { Content = "Update", IsVisible = false };
-			grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Parse("*") });
-			grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto});
-			grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-			grid.Children.Add(item.CheckUi);
-			grid.Children.Add(item.UpdateUi);
-			Grid.SetColumn(item.CheckUi, 0);
-			Grid.SetColumn(item.UpdateUi, 1);
-			ToolTip.SetTip(item.CheckUi, item.Description);
-			Items.Add(grid);
-		}
 	}
 }

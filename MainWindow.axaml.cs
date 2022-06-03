@@ -1,6 +1,8 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Layout;
 using Newtonsoft.Json.Linq;
 
 namespace FlaxPlugMan;
@@ -8,13 +10,12 @@ namespace FlaxPlugMan;
 public class MainWindow : Window
 {
 	private const string 
-		Version = " 1.4",
+		Version = " 1.5",
 		VersionUrl = "https://api.github.com/repos/Crawcik/FlaxPluginManager/releases/latest";
 
 	private Manager _manager = new ();
 	private CheckBox _gitSupportBox;
-	private ListBox _pluginList;
-	private PluginListViewModel _pluginListView;
+	private Border _pluginListModel;
 	private Button _selectButton;
 	private Button _applyButton;
 
@@ -50,26 +51,30 @@ public class MainWindow : Window
 		await _manager.GetPluginList();
 		_manager.OnDownloadStarted += () => OnDownload(true);
 		_manager.OnDownloadFinished += () => OnDownload(false);
-		_pluginList.DataContext = _pluginListView = new PluginListViewModel(_manager.Plugins);
+		_pluginListModel.Child = GetGrid();
 		foreach (var item in _manager.Plugins)
 			item.UpdateUi.Click += (sender, args) => _manager.UpdatePlugin(item).GetAwaiter();
 		if(Program.Args is null || Program.Args.Length == 0)
 			return;
 		string path = Program.Args[0];
 		if(File.Exists(path) && path.EndsWith(".flaxproj"))
-			_manager.SetProject(path).GetAwaiter();
+			_manager.SetProject(path).GetAwaiter().OnCompleted(() => {
+				this.Title = Path.GetFileName(path);
+				_applyButton.IsEnabled = true;
+				_pluginListModel.IsEnabled = true; 
+			});
 	}
 
 	private void InitializeComponent()
 	{
 		AvaloniaXamlLoader.Load(this);
 		this.FindControl<Label>("Info").Content += Version;
-		_pluginList = this.FindControl<ListBox>("PluginList");
+		_pluginListModel = this.FindControl<Border>("PluginList");
 		_selectButton = this.FindControl<Button>("SelectButton");
 		_applyButton = this.FindControl<Button>("ApplyButton");
 		_gitSupportBox = this.FindControl<CheckBox>("GitSupport");
 		_applyButton.IsEnabled = false;
-		_pluginList.IsEnabled = false;
+		_pluginListModel.IsEnabled = false;
 	}
 
 	private void OnSelectClick(object sender, RoutedEventArgs e)
@@ -94,7 +99,7 @@ public class MainWindow : Window
 			return;
 		this.Title = Path.GetFileName(path);
 		_applyButton.IsEnabled = true;
-		_pluginList.IsEnabled = true;   
+		_pluginListModel.IsEnabled = true;   
 	}
 
 	private void OnApplyClick(object sender, RoutedEventArgs e)
@@ -110,6 +115,55 @@ public class MainWindow : Window
 		_applyButton.Content = start ? "Cancel" : "Apply";
 		_selectButton.IsEnabled = !start;
 		_gitSupportBox.IsEnabled = !start;
-		_pluginList.IsEnabled = !start;
+		_pluginListModel.IsEnabled = !start;
+	}
+
+	private Grid GetGrid()
+	{
+		var tagBackground = Brush.Parse("#32417d");
+		var grid = new Grid();
+		grid.ColumnDefinitions.Add(new () { Width = GridLength.Parse("*") });
+		grid.ColumnDefinitions.Add(new () { Width = GridLength.Auto});
+		var items = _manager.Plugins;
+		for (int i = 0; i < items.Count; i++)
+		{
+			var item = items[i];
+			var isTagNull = !string.IsNullOrEmpty(item.Tag);
+			item.CheckUi = new() {
+				Content = item.Name,
+				FontSize = 16
+			};
+			item.UpdateUi = new () { 
+				Content = "Update",
+				IsVisible = false,
+				HorizontalContentAlignment = HorizontalAlignment.Center,
+				VerticalContentAlignment = VerticalAlignment.Center
+			};
+			item.TagUi = new () { 
+				Content = item.Tag,
+				IsVisible = true,
+				Background = tagBackground,
+				HorizontalContentAlignment = HorizontalAlignment.Center,
+				VerticalContentAlignment = VerticalAlignment.Center,
+				CornerRadius = new Avalonia.CornerRadius(25),
+				Margin = new Avalonia.Thickness(8)
+			};
+			grid.RowDefinitions.Add(new () { Height = GridLength.Auto });
+			grid.Children.Add(item.CheckUi);
+			grid.Children.Add(item.UpdateUi);
+			if (isTagNull)
+				grid.Children.Add(item.TagUi);
+			Grid.SetColumn(item.CheckUi, 0);
+			Grid.SetRow(item.CheckUi, i);
+			Grid.SetColumn(item.UpdateUi, 1);
+			Grid.SetRow(item.UpdateUi, i);
+			if (isTagNull)
+			{
+				Grid.SetColumn(item.TagUi, 1);
+				Grid.SetRow(item.TagUi, i);
+			}
+			ToolTip.SetTip(item.CheckUi, item.Description);
+		}
+		return grid;
 	}
 }
