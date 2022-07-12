@@ -2,7 +2,7 @@
 
 [![GitHub release](https://img.shields.io/github/release/Crawcik/FlaxPluginManager?style=for-the-badge)](https://github.com/Crawcik/FlaxPluginManager/releases)
 [![Github All Releases](https://img.shields.io/github/downloads/Crawcik/FlaxPluginManager/total.svg?style=for-the-badge)](https://github.com/Crawcik/FlaxPluginManager/releases)
-[![Platforms](https://img.shields.io/badge/platform-windows|linux-lightgrey?style=for-the-badge)](https://github.com/Crawcik/FlaxPluginManager/releases)
+[![Platforms](https://img.shields.io/badge/platform-windows|linux|mac-lightgrey?style=for-the-badge)](https://github.com/Crawcik/FlaxPluginManager/releases)
 #### Supports git, git modules and direct downloading
 <p align="center">
 <img src="https://user-images.githubusercontent.com/42977680/174563353-600e1085-16a6-4cc6-af0f-9a1902b04b5d.png">
