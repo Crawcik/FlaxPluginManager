@@ -16,7 +16,7 @@
 	},
 	{
 		"name": "HeroCrab Plugin",
-		"tag": "Networking",
+		"tag": "Network",
 		"description": "An authoritative network messaging framework for use in multi-player",
 		"url": "https://github.com/herocrab/HeroCrabPlugin",
 		"branch": "main",
@@ -25,7 +25,7 @@
 	},
 	{
 		"name": "Journal",
-		"tag": "Console",
+		"tag": "Utility",
 		"description": "Console for Flax Engine with command handling",
 		"url": "https://github.com/Crawcik/Journal",
 		"moduleName": "Journal",
@@ -33,7 +33,7 @@
 	},
 	{
 		"name": "Online Platform Steam",
-		"tag": "Utility",
+		"tag": "Network",
 		"description": "Online platform implementation of Steam for games made with Flax Engine",
 		"url": "https://github.com/FlaxEngine/OnlinePlatformSteam",
 		"moduleName": "OnlinePlatformSteam",
@@ -46,7 +46,7 @@
 	},
 	{
 		"name": "Online Platform Xbox Live",
-		"tag": "Utility",
+		"tag": "Network",
 		"description": "Online platform implementation of Xbox Live for games made with Flax Engine",
 		"url": "https://github.com/FlaxEngine/OnlinePlatformXboxLive",
 		"moduleName": "OnlinePlatformXboxLive",
