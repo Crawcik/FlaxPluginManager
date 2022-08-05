@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Layout;
+using Avalonia.Interactivity;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace FlaxPlugMan;
 
@@ -47,5 +47,24 @@ public record PluginEntry(string Name, string Description, string Tag, string Ur
 		UpdateUi.Background = start ? Brushes.Gray : null;
 		UpdateUi.Foreground = start ? Brushes.White : null;
 		UpdateUi.IsEnabled = !start;
+	}
+
+	public void OpenPage(object sender, RoutedEventArgs e)
+	{
+		var command = GetOSCommand();
+		if (command is null)
+			return;
+		Process.Start(command, Url);
+	}
+
+	private string GetOSCommand()
+	{
+		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return "explorer";
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            return "xdg-open";
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return "open";
+		return null;
 	}
 }

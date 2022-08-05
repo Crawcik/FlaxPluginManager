@@ -122,13 +122,15 @@ public class MainWindow : Window
 	{
 		var tagBackground = Brush.Parse("#32417d");
 		var grid = new Grid();
-		grid.ColumnDefinitions.Add(new () { Width = GridLength.Parse("*") });
+		grid.ColumnDefinitions.Add(new () { Width = GridLength.Star });
+		grid.ColumnDefinitions.Add(new () { Width = GridLength.Auto});
 		grid.ColumnDefinitions.Add(new () { Width = GridLength.Auto});
 		var items = _manager.Plugins;
+		var geometry = (Geometry)Resources["link_square_regular"];
 		for (int i = 0; i < items.Count; i++)
 		{
 			var item = items[i];
-			var isTagNull = !string.IsNullOrEmpty(item.Tag);
+			var isTagNull = string.IsNullOrEmpty(item.Tag);
 			item.CheckUi = new() {
 				Content = item.Name,
 				FontSize = 16
@@ -148,18 +150,26 @@ public class MainWindow : Window
 				CornerRadius = new Avalonia.CornerRadius(25),
 				Margin = new Avalonia.Thickness(8)
 			};
+			var link = new PathIcon() {
+				Data = geometry
+			};
+			link.Tapped += item.OpenPage;
+			
 			grid.RowDefinitions.Add(new () { Height = GridLength.Auto });
 			grid.Children.Add(item.CheckUi);
+			grid.Children.Add(link);
 			grid.Children.Add(item.UpdateUi);
-			if (isTagNull)
+			if (!isTagNull)
 				grid.Children.Add(item.TagUi);
 			Grid.SetColumn(item.CheckUi, 0);
 			Grid.SetRow(item.CheckUi, i);
-			Grid.SetColumn(item.UpdateUi, 1);
+			Grid.SetColumn(link, 1);
+			Grid.SetRow(link, i);
+			Grid.SetColumn(item.UpdateUi, 2);
 			Grid.SetRow(item.UpdateUi, i);
-			if (isTagNull)
+			if (!isTagNull)
 			{
-				Grid.SetColumn(item.TagUi, 1);
+				Grid.SetColumn(item.TagUi, 2);
 				Grid.SetRow(item.TagUi, i);
 			}
 			ToolTip.SetTip(item.CheckUi, item.Description);
