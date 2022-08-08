@@ -18,6 +18,7 @@ public class Manager
 	public bool IsProcessActive => _cancelToken is not null;
 
 	public event Action OnDownloadStarted, OnDownloadFinished;
+	public event Action<double> UpdateProgress;
 
 	public static Process StartGitProcess(string args, string path = "", bool stdout = false) => Process.Start(new ProcessStartInfo()
 	{
@@ -139,6 +140,8 @@ public class Manager
 		_cancelToken = null;
 		
 	}
+
+	public void SetProgress(double progress) => UpdateProgress?.Invoke(progress * 100);
 
 	private async Task<string> UpdateFlaxProject()
 	{

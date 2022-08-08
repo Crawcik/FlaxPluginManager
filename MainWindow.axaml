@@ -18,12 +18,13 @@
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="0.5*,0.5*">
-        <Label Name="Info"  Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="14" >Flax Plugin Manager</Label>
+        <TextBlock Name="Info"  Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Height="20" FontSize="14" Text="Flax Plugin Manager" />
         <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Background="#18191d" BorderBrush="#283f9a" BorderThickness="3" CornerRadius="5">
             <ScrollViewer Name="PluginList" Padding="10">
             </ScrollViewer>
         </Border>
-        <CheckBox Name="GitSupport" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" IsEnabled="false">Download via Git</CheckBox>
+        <CheckBox Name="GitSupport" Grid.Row="2" Grid.Column="0" IsEnabled="false">Download via Git</CheckBox>
+        <ProgressBar Name="Progress" Grid.Row="2" Grid.Column="1" Value="0" Foreground="#283f9a" Minimum="0" Maximum="100" />
         <Button Name="SelectButton" Grid.Row="3" Grid.Column="0" Background="#363c42" HorizontalContentAlignment="Center" Click="OnSelectClick">Select project</Button>
         <Button Name="ApplyButton" Grid.Row="3" Grid.Column="1" Background="#363c42" HorizontalContentAlignment="Center" Click="OnApplyClick">Apply</Button>
     </Grid>

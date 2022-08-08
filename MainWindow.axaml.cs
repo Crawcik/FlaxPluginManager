@@ -4,16 +4,19 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Layout;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 
 namespace FlaxPlugMan;
 
 public class MainWindow : Window
 {
 	private const string 
-		Version = " 1.5",
-		VersionUrl = "https://api.github.com/repos/Crawcik/FlaxPluginManager/releases/latest";
+		Version = " 1.6",
+		VersionApi = "https://api.github.com/repos/Crawcik/FlaxPluginManager/releases/latest",
+		LatestUrl = "https://github.com/Crawcik/FlaxPluginManager/releases/latest";
 
-	private Manager _manager = new ();
+	private Manager _manager;
+	private ProgressBar _progressBar;
 	private CheckBox _gitSupportBox;
 	private ScrollViewer _pluginListModel;
 	private Button _selectButton;
@@ -21,6 +24,7 @@ public class MainWindow : Window
 
 	public MainWindow()
 	{
+		_manager = new();
 		InitializeComponent();
 		InitializeAsync().GetAwaiter();
 	}
@@ -28,13 +32,18 @@ public class MainWindow : Window
 	private async Task InitializeAsync() 
 	{
 		// Check manager update
-		var result =  await new DirectDownload().GetWebString(VersionUrl);
+		var result =  await new DirectDownload().GetWebString(VersionApi);
 		if(result is not null)
 		{
 			var versionRemote = JObject.Parse(result)["tag_name"].ToString().Remove(0, 1);
 			if(versionRemote != Version.Trim())
-				this.FindControl<Label>("Info").Content += " (new version avalible)";
-				
+			{
+				var info = this.FindControl<TextBlock>("Info");
+				info.TextDecorations = TextDecorations.Underline;
+				info.Text += " (new version avalible)";
+				info.Tapped += (sender, ev) => Process.Start(Program.GetOSCommand(), LatestUrl);
+
+			}
 		}
 
 		try
@@ -49,6 +58,7 @@ public class MainWindow : Window
 
 		// Initialize plugins list & manager	
 		await _manager.GetPluginList();
+		_manager.UpdateProgress += percentage => _progressBar.Value = percentage;
 		_manager.OnDownloadStarted += () => OnDownload(true);
 		_manager.OnDownloadFinished += () => OnDownload(false);
 		_pluginListModel.Content = GetGrid();
@@ -68,11 +78,13 @@ public class MainWindow : Window
 	private void InitializeComponent()
 	{
 		AvaloniaXamlLoader.Load(this);
-		this.FindControl<Label>("Info").Content += Version;
+		this.FindControl<TextBlock>("Info").Text += Version;
 		_pluginListModel = this.FindControl<ScrollViewer>("PluginList");
+		_progressBar = this.FindControl<ProgressBar>("Progress");
 		_selectButton = this.FindControl<Button>("SelectButton");
 		_applyButton = this.FindControl<Button>("ApplyButton");
 		_gitSupportBox = this.FindControl<CheckBox>("GitSupport");
+		_progressBar.IsVisible = false;
 		_applyButton.IsEnabled = false;
 		_pluginListModel.IsEnabled = false;
 	}
@@ -116,6 +128,7 @@ public class MainWindow : Window
 		_selectButton.IsEnabled = !start;
 		_gitSupportBox.IsEnabled = !start;
 		_pluginListModel.IsEnabled = !start;
+		_progressBar.IsVisible = start;
 	}
 
 	private Grid GetGrid()
