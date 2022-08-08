@@ -15,15 +15,20 @@ public class DirectDownload : Download
 			{"User-Agent", "FlaxPluginManager-App"}
 		}	
 	};
+	private int _count;
+	private double _index;
 
 	public override async Task<bool> ProcessAll(ILookup<bool, PluginEntry> plugins, string path, CancellationToken token)
 	{
+		_count = plugins[false].Count() + plugins[true].Count();
+		_index = 0;
 		var allSuccess = true;
 		foreach (var item in plugins[false])
 		{
 			if(token.IsCancellationRequested)
 				break;
 			RemovePlugin(Path.Combine(path, item.Name));
+			Progress(_index++ / _count);
 			item.Installed = false;
 		}
 		foreach (var item in plugins[true])
@@ -34,9 +39,8 @@ public class DirectDownload : Download
 			{
 				item.CheckUi.IsEnabled = false;
 				allSuccess = false;
-				continue;
-			}
-			item.Installed = true;
+			} else item.Installed = true;
+			_index++;
 		}
 		return allSuccess;
 	}
@@ -63,8 +67,11 @@ public class DirectDownload : Download
 			return false;
 
 		var root = JObject.Parse(result);
-		foreach (var item in root["files"])
+		var files = root["files"];
+		var length = files.Count();
+		for (int i = 0; i < length; i++)
 		{
+			var item = files[i];
 			try 
 			{
 				var filename = Path.Combine(dir, (string)item["filename"]);
@@ -86,6 +93,7 @@ public class DirectDownload : Download
 						break;
 				}
 			} catch { return false; }
+			Progress((_index / _count) + ((double)i / (_count * length)));
 		}
 		var sha = (string)root["commits"].Last["sha"];
 		await File.WriteAllTextAsync(plugin.VersionPath, sha, token);
@@ -102,6 +110,8 @@ public class DirectDownload : Download
 			var root = JObject.Parse(await GetWebString(apiList, token));
 			var url = string.Format(RawUrl, repoLocation, plugin.Branch ?? "master");
 			var tree = root["tree"].Where(x => (string)x["type"] == "blob");
+			var length = tree.Count();
+			var i = 1.0d;
 			foreach (var obj in tree)
 			{
 				var repoPath = (string)obj["path"];
@@ -109,6 +119,8 @@ public class DirectDownload : Download
 				Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 				if(!await WriteFromStream(url + repoPath, filePath, token))
 					return false;
+				Progress((_index / _count) + (i / (_count * length)));
+				i++;
 			}
 			await File.WriteAllTextAsync(Path.Combine(path, ".plugin-version"), (string)root["sha"], token);
 		}

@@ -90,6 +90,7 @@ public class Manager
 		{
 			// Download files
 			Download downloader = gitChecked ? new GitDownload() : new DirectDownload();
+			downloader.SetProgressDelegate(SetProgress);
 			var dirInfo = Directory.CreateDirectory(Path.Combine(fileInfo.DirectoryName, "Plugins"));
 			var lookup = Plugins.Where(x => x.CheckUi.IsChecked != x.Installed).ToLookup(x => x.CheckUi.IsChecked ?? false);
 			foreach (var item in lookup[true])
@@ -126,6 +127,7 @@ public class Manager
 		try
 		{
 			Download download = item.IsGitManaged.Value ? new GitDownload() : new DirectDownload();
+			download.SetProgressDelegate(SetProgress);
 			var success = await download.Update(item, _cancelToken.Token);
 			await MessageBox.Show(null, success ? "Info" : "Error", success ? "Success!" : "Updating failed!");
 			item.UpdateUi.IsVisible = !success;

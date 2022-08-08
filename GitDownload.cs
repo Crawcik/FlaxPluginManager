@@ -14,7 +14,8 @@ public class GitDownload : Download
 			gitmoduleFile = Path.Combine(path, "..", ".gitmodules");
 		if(!File.Exists(gitmoduleFile) || !submodule)
 			gitmoduleFile = null;
-		
+		var count = plugins[false].Count() + plugins[true].Count();
+		var index = 0.0d;
 		var allSuccess = true;
 		foreach (var item in plugins[false])
 		{
@@ -22,18 +23,19 @@ public class GitDownload : Download
 				break;
 			await RemovePlugin(item, path, gitmoduleFile, token);
 			item.Installed = false;
+			Progress(index++ / count);
 		}
 		foreach (var item in plugins[true])
 		{
 			if(token.IsCancellationRequested)
 				break;
-			if(!await AddPlugin(item, path, submodule, token))
+			if (!await AddPlugin(item, path, submodule, token))
 			{
 				item.CheckUi.IsEnabled = false;
 				allSuccess = false;
-				continue;
 			}
-			item.Installed = true;
+			else item.Installed = true;
+			Progress(index++ / count);
 		}
 		return allSuccess;
 	}
